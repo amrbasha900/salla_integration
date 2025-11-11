@@ -96,6 +96,20 @@ def create_salla_custom_fields():
 				"insert_after": "numeric_values",
 				"read_only": 1
 			},
+            {
+                "fieldname": "salla_option_ids",
+                "label": "Salla Option IDs",
+                "fieldtype": "Small Text",
+                "insert_after": "salla_sku",
+                "read_only": 1
+            },
+            {
+                "fieldname": "salla_option_value_ids",
+                "label": "Salla Option Value IDs",
+                "fieldtype": "Small Text",
+                "insert_after": "salla_option_ids",
+                "read_only": 1
+            },
 			{
 				"fieldname": "salla_store",
 				"label": "Salla Store",

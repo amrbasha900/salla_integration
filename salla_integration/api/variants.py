@@ -1,7 +1,9 @@
 import frappe
+import json
 from frappe.utils import now
 from typing import Any, Dict, List, Tuple
 from erpnext.controllers.item_variant import create_variant, make_variant_item_code
+from frappe.model.rename_doc import rename_doc
 from salla_integration.utils.salla_client import SallaClient
 from salla_integration.api.options import sync_product_options
 
@@ -46,45 +48,174 @@ def _get_attr_names_for_product(salla_product: Dict[str, Any], store_name: str) 
 			ordered.append(n)
 	return ordered
 
-def ensure_attribute_defs_and_values(salla_product: Dict[str, Any], store_name: str, sync_log=None) -> List[str]:
+
+def _get_attr_names_from_erp(template_sku: str, store_name: str) -> List[str]:
+	"""Fetch Item Attribute names from ERP by product_sku and store, independent of product payload."""
+	if not template_sku:
+		return []
+	names: List[str] = []
+	try:
+		rows = frappe.get_all(
+			"Item Attribute",
+			filters={"product_sku": template_sku, "salla_store": store_name},
+			fields=["attribute_name"],
+			order_by="creation asc",
+		)
+		for r in rows:
+			if r.get("attribute_name"):
+				names.append(r.get("attribute_name"))
+	except Exception:
+		pass
+	# dedupe preserve order
+	seen = set()
+	out: List[str] = []
+	for n in names:
+		if n not in seen:
+			seen.add(n)
+			out.append(n)
+	return out
+
+def _build_option_value_maps(full_product: Dict[str, Any], template_sku: str) -> Tuple[Dict[str, str], Dict[str, str], Dict[str, str]]:
 	"""
-	Ensure Item Attribute docs (and their values) exist for all Salla options.
-	Returns list of Item Attribute names to attach to the template.
+	Returns:
+	- option_id_to_attr_name: option_id -> composed attribute_name
+	- value_id_to_value_label: value_id -> Item Attribute Value label
+	- value_id_to_option_id: value_id -> option_id
 	"""
-	attr_names: List[str] = []
-	for opt in (salla_product.get("options") or []):
-		attr_name = _text(opt.get("name"))
-		if not attr_name:
+	option_id_to_attr_name: Dict[str, str] = {}
+	value_id_to_value_label: Dict[str, str] = {}
+	value_id_to_option_id: Dict[str, str] = {}
+	for opt in (full_product.get("options") or []):
+		opt_id = str(opt.get("id") or "")
+		opt_name = _text(opt.get("name"))
+		if not opt_id or not opt_name:
 			continue
-		# Ensure Item Attribute exists
+		attr_name = f"{template_sku} - {opt_id} - {opt_name}".strip()
+		option_id_to_attr_name[opt_id] = attr_name
+		for v in (opt.get("values") or []):
+			vid = str(v.get("id") or "")
+			if not vid:
+				continue
+			label = _text(v.get("name")) or _text(v.get("display_value")) or _text(v.get("hashed_display_value")) or vid
+			value_id_to_value_label[vid] = label
+			value_id_to_option_id[vid] = opt_id
+	return option_id_to_attr_name, value_id_to_value_label, value_id_to_option_id
+
+def _build_maps_from_erp(template_sku: str, store_name: str) -> Dict[str, Tuple[str, str]]:
+	"""
+	Map salla_option_value_id -> (attribute_name, attribute_value_label) using ERP Item Attribute data.
+	"""
+	value_to_attr: Dict[str, Tuple[str, str]] = {}
+	try:
+		attr_rows = frappe.get_all(
+			"Item Attribute",
+			filters={"product_sku": template_sku, "salla_store": store_name},
+			fields=["name", "attribute_name"],
+		)
+		for r in attr_rows:
+			try:
+				doc = frappe.get_doc("Item Attribute", r["name"])
+			except Exception:
+				continue
+			attr_name = doc.attribute_name
+			for v in (doc.item_attribute_values or []):
+				vid = getattr(v, "salla_option_value_id", None)
+				lbl = getattr(v, "attribute_value", None)
+				if vid and lbl:
+					value_to_attr[str(vid)] = (attr_name, lbl)
+	except Exception:
+		pass
+	return value_to_attr
+
+
+def create_variants_from_api(template_item, salla_product: Dict[str, Any], sync_log=None):
+	"""Create ERPNext Item Variants from Salla variants endpoint."""
+	product_id = str(salla_product.get("id") or "")
+	store_name = _text(template_item.get("salla_store"))
+	template_sku = _text(template_item.get("item_code"))
+	if not store_name:
+		log_sync(sync_log, "SKIP - no store", product_id, "", template_item.name, "Template missing salla_store")
+		return
+
+	client = SallaClient(store_name)
+	# Get full product to ensure options/values present for mapping
+	try:
+		full_product = client.get_product(product_id) or salla_product
+	except Exception:
+		full_product = salla_product
+
+	option_id_to_attr_name, value_id_to_value_label, value_id_to_option_id = _build_option_value_maps(full_product, template_sku)
+	erp_value_to_attr = _build_maps_from_erp(template_sku, store_name)
+
+	# Iterate Salla variants
+	for variant_data in client.iterate_pages("get_product_variants", product=product_id):
+		sku = _text(variant_data.get("sku"))
+		if not sku:
+			log_sync(sync_log, "SKIP - missing SKU", product_id, "", "", "Variant with empty SKU")
+			continue
+		# Skip if already exists
+		if frappe.db.exists("Item", {"item_code": sku}):
+			log_sync(sync_log, "SKIP - item exists", product_id, sku, sku, "Variant already exists")
+			continue
+
+		# Map related_option_values -> args {attribute_name: attribute_value_label}
+		args: Dict[str, str] = {}
+		for vid in (variant_data.get("related_option_values") or []):
+			vid_str = str(vid)
+			# Prefer ERP mapping to guarantee exact attribute_name matching
+			if vid_str in erp_value_to_attr:
+				attr_name, val_label = erp_value_to_attr[vid_str]
+			else:
+				attr_name = option_id_to_attr_name.get(value_id_to_option_id.get(vid_str, ""))
+				val_label = value_id_to_value_label.get(vid_str)
+			if attr_name and val_label:
+				args[attr_name] = val_label
+		if not args:
+			log_sync(sync_log, "SKIP - no attributes", product_id, sku, "", "No attribute mapping for variant")
+			continue
+
+		log_sync(sync_log, "ATTEMPT - variant create", product_id, sku, "", f"Attr Map: {args}")
 		try:
-			docname = frappe.db.get_value("Item Attribute", {"attribute_name": attr_name}, "name")
-			if not docname:
-				attr = frappe.get_doc({
-					"doctype": "Item Attribute",
-					"attribute_name": attr_name,
-					"numeric_values": 0
-				})
-				attr.insert(ignore_permissions=True)
-				docname = attr.name
-				log_sync(sync_log, "CREATED - attribute", str(salla_product.get("id") or ""), "", "", f"{attr_name}")
-			# Ensure values
-			attr_doc = frappe.get_doc("Item Attribute", docname)
-			existing = {v.attribute_value for v in (attr_doc.item_attribute_values or [])}
-			changed = False
-			for val in (opt.get("values") or []):
-				val_label = _text(val.get("name")) or _text(val.get("display_value")) or _text(val.get("hashed_display_value")) or str(val.get("id") or "")
-				if not val_label or val_label in existing:
-					continue
-				attr_doc.append("item_attribute_values", {"attribute_value": val_label, "abbr": val_label})
-				existing.add(val_label)
-				changed = True
-			if changed:
-				attr_doc.save(ignore_permissions=True)
-			attr_names.append(docname)
+			# Create variant using standard API
+			variant = create_variant(template_item.name, args)
+			# Set item_code to Salla SKU
+			old_name = variant.name
+			try:
+				variant.item_code = sku
+			except Exception:
+				pass
+			# Set Salla custom fields on variant
+			for field, value in [
+				("salla_is_from_salla", 1),
+				("salla_store", store_name),
+				("salla_product_id", product_id),
+				("salla_sku", sku),
+				("salla_option_ids", json.dumps(variant_data.get("related_options") or [])),
+				("salla_option_value_ids", json.dumps(variant_data.get("related_option_values") or [])),
+			]:
+				if field in variant.as_dict():
+					try:
+						variant.set(field, value)
+					except Exception:
+						pass
+			variant.save(ignore_permissions=True)
+			frappe.db.commit()
+
+			# Rename to SKU if needed
+			if variant.name != sku:
+				try:
+					rename_doc("Item", variant.name, sku, force=True, merge=False)
+					variant = frappe.get_doc("Item", sku)
+					log_sync(sync_log, "RENAMED - variant", product_id, sku, variant.name, f"Renamed from {old_name} to {sku}")
+				except Exception as e:
+					log_sync(sync_log, "WARN - rename failed", product_id, sku, old_name, f"{e}")
+			log_sync(sync_log, "CREATED - variant", product_id, sku, variant.name, f"Attributes: {args}")
 		except Exception as e:
-			frappe.log_error("Salla Attribute Ensure", f"Failed to ensure attribute {attr_name}: {e}")
-	return list(dict.fromkeys(attr_names))
+			msg = str(e)
+			log_sync(sync_log, "ERROR - variant", product_id, sku, "", msg)
+			frappe.log_error("Salla Variant Creation", f"Failed to create variant for SKU {sku}: {msg}")
+
+# Legacy helpers removed; options flow handles attribute creation
 
 
 def log_sync(sync_log, action: str, salla_id: str = "", salla_sku: str = "", erp_item_code: str = "", message: str = ""):
@@ -137,14 +268,14 @@ def ensure_template_item(salla_product: Dict[str, Any], store_name: str, sync_lo
 	item.item_group = "All Item Groups"
 	item.stock_uom = "Nos"
 	item.is_stock_item = 1
-	# Attach attributes (ensured by options flow) before insert
-	options = salla_product.get("options") or []
-	if options:
-		for attr_name in _get_attr_names_for_product(salla_product, store_name):
-			item.append("attributes", {"attribute": attr_name})
-		item.has_variants = 1
-	else:
-		item.has_variants = 0
+	# Attach attributes (ensured by options flow) before insert.
+	# Prefer product payload; fall back to ERP lookup if payload lacks options.
+	names = _get_attr_names_for_product(salla_product, store_name)
+	if not names:
+		names = _get_attr_names_from_erp(template_sku, store_name)
+	for attr_name in names:
+		item.append("attributes", {"attribute": attr_name})
+	item.has_variants = 1 if names else 0
 	# Salla custom fields if present in system
 	for field, value in [
 		("salla_is_from_salla", 1),
@@ -160,277 +291,20 @@ def ensure_template_item(salla_product: Dict[str, Any], store_name: str, sync_lo
 	return item
 
 
-def _collect_option_maps(salla_product: Dict[str, Any]) -> Tuple[Dict[str, str], Dict[str, str]]:
-	"""
-	Map Salla option/value IDs to ERPNext attribute/value labels.
-	Returns:
-	- option_id_to_attr_name
-	- value_id_to_value_label
-	"""
-	option_id_to_attr_name: Dict[str, str] = {}
-	value_id_to_value_label: Dict[str, str] = {}
-	for opt in salla_product.get("options") or []:
-		attr_name = _text(opt.get("name"))
-		option_id = str(opt.get("id") or "")
-		if not attr_name or not option_id:
-			continue
-		option_id_to_attr_name[option_id] = attr_name
-		for val in opt.get("values") or []:
-			# Prefer value 'name' to match ERPNext Item Attribute Value labels
-			value_label = _text(val.get("name")) or _text(val.get("display_value")) or _text(val.get("hashed_display_value"))
-			value_id = str(val.get("id") or "")
-			if value_label and value_id:
-				value_id_to_value_label[value_id] = value_label
-	return option_id_to_attr_name, value_id_to_value_label
+# Legacy helper removed
 
 
-def ensure_attributes_from_options(salla_product: Dict[str, Any], template_item, sync_log=None):
-	"""Create Item Attribute and Values, and attach attributes to template item."""
-	product_id = str(salla_product.get("id") or "")
-	options = salla_product.get("options") or []
-	if not options:
-		return
-	# Consider only options that actually participate in variants (appear in skus.related_option_values)
-	used_value_ids = set()
-	for sku_row in (salla_product.get("skus") or []):
-		for vid in (sku_row.get("related_option_values") or []):
-			try:
-				used_value_ids.add(str(vid))
-			except Exception:
-				continue
-
-	attached_attrs = set([row.attribute for row in (template_item.get("attributes") or []) if row.attribute])
-
-	for opt in options:
-		attr_name = _text(opt.get("name"))
-		if not attr_name:
-			continue
-		# Skip options with no values or not used in any SKU combinations
-		values = opt.get("values") or []
-		if used_value_ids:
-			has_used = any(str(v.get("id") or "") in used_value_ids for v in values)
-			if not has_used:
-				continue
-		# Ensure Item Attribute
-		attr_doc = frappe.db.get_value("Item Attribute", {"attribute_name": attr_name}, "name")
-		if not attr_doc:
-			attr = frappe.get_doc({"doctype": "Item Attribute", "attribute_name": attr_name, "numeric_values": 0})
-			attr.insert(ignore_permissions=True)
-			attr_doc = attr.name
-			log_sync(sync_log, "CREATED - attribute", product_id, "", "", f"Attribute {attr_name}")
-		# Ensure attribute values
-		existing_vals = {
-			v.attribute_value: 1 for v in (frappe.get_doc("Item Attribute", attr_doc).get("item_attribute_values") or [])
-		}
-		changed = False
-		attr_inst = frappe.get_doc("Item Attribute", attr_doc)
-		for val in values:
-			# Only include values that are used in SKUs (if we know them)
-			val_id = str(val.get("id") or "")
-			if used_value_ids and val_id not in used_value_ids:
-				continue
-			value_label = _text(val.get("display_value")) or _text(val.get("name"))
-			if not value_label or value_label in existing_vals:
-				continue
-			attr_inst.append("item_attribute_values", {"attribute_value": value_label})
-			changed = True
-			log_sync(sync_log, "CREATED - attribute value", product_id, "", "", f"{attr_name}={value_label}")
-		if changed:
-			attr_inst.save(ignore_permissions=True)
-		# Attach to template attributes table
-		if attr_doc not in attached_attrs:
-			template_item.append("attributes", {"attribute": attr_doc})
-			attached_attrs.add(attr_doc)
-	template_item.has_variants = 1
-	template_item.save(ignore_permissions=True)
-	frappe.db.commit()
+def ensure_attributes_from_options(*args, **kwargs):
+	"""Deprecated: handled by options flow; left for compatibility."""
+	return
 
 
-def create_salla_option_records(salla_product: Dict[str, Any], template_item, sync_log=None):
-	"""Create Salla Product Option records linked to template item, named {item_sku}-{option_id}."""
-	product_id = str(salla_product.get("id") or "")
-	template_sku = _text(template_item.item_code)
-	for opt in salla_product.get("options") or []:
-		option_id = str(opt.get("id") or "")
-		if not option_id:
-			continue
-		# Name pattern ensured by autoname; ensure unique per (erp_item_code, option_id)
-		exists = frappe.db.exists("Salla Product Option", {"erp_item_code": template_item.name, "option_id": option_id})
-		if exists:
-			continue
-		doc = frappe.get_doc({
-			"doctype": "Salla Product Option",
-			"salla_store": template_item.get("salla_store"),
-			"product_id": product_id,
-			"option_id": option_id,
-			"option_name": _text(opt.get("name")),
-			"option_type": opt.get("type") or "",
-			"required": int(bool(opt.get("required"))),
-			"display_type": opt.get("display_type") or "",
-			"visibility": opt.get("visibility") or "",
-			"erp_item_code": template_item.name
-		})
-		# Append values' labels
-		for val in opt.get("values") or []:
-			doc.append("values", {
-				"value_id": str(val.get("id") or ""),
-				"value_name": _text(val.get("name")),
-				"display_value": _text(val.get("display_value"))
-			})
-		doc.insert(ignore_permissions=True)
-		frappe.db.commit()
-		log_sync(sync_log, "CREATED - option record", product_id, template_sku, template_item.name, f"Option {option_id}")
+def create_salla_option_records(*args, **kwargs):
+	"""Deprecated: options flow persists Salla Product Option docs."""
+	return
 
 
-def create_variants_from_api(template_item, salla_product: Dict[str, Any], sync_log=None):
-	"""Create ERPNext variants by fetching Salla variants via API (not from product.skus)."""
-	product_id = str(salla_product.get("id") or "")
-	if not product_id:
-		return
-	store_name = _text(template_item.get("salla_store"))
-	if not store_name:
-		log_sync(sync_log, "SKIP - no store", product_id, "", template_item.name, "Template missing salla_store")
-		return
-	client = SallaClient(store_name)
-	# Fetch full product to ensure options are present for mapping
-	try:
-		full_product = client.get_product(product_id) or {}
-	except Exception as e:
-		full_product = {}
-		frappe.log_error("Salla Variant Fetch", f"Failed to fetch full product {product_id}: {e}")
-	# Ensure attributes exist and attached based on full product options
-	try:
-		ensure_attributes_from_options(full_product or salla_product, template_item, sync_log=sync_log)
-	except Exception:
-		pass
-	# Build value_id -> label map from product options
-	_, value_id_to_label = _collect_option_maps(full_product or salla_product)
-	# Iterate Salla API variants pages
-	for variant_row in client.iterate_pages("get_product_variants", product=product_id, per_page=60):
-		frappe.log_error("Salla Variant Fetch", f"Variant row: {variant_row}")
-		if not isinstance(variant_row, dict):
-			continue
-		erp_sku = _text(variant_row.get("sku"))
-		if not erp_sku:
-			log_sync(sync_log, "SKIP - missing SKU", product_id, "", "", "Variant with empty SKU")
-			continue
-		# Ensure template has attributes table populated before variant creation
-		try:
-			template_item.reload()
-		except Exception:
-			pass
-		if not (template_item.get("attributes") or []):
-			# Try to attach now
-			try:
-				ensure_attributes_from_options(salla_product, template_item, sync_log=sync_log)
-			except Exception:
-				pass
-		# Double-check via DB child table count
-		attr_rows = frappe.db.count("Item Variant Attribute", {"parent": template_item.name})
-		if not (template_item.get("attributes") or []) and not attr_rows:
-			log_sync(sync_log, "SKIP - template missing attributes", product_id, erp_sku, template_item.name, "Attribute table is mandatory")
-			continue
-		# Skip if exists
-		if frappe.db.exists("Item", {"item_code": erp_sku}):
-			log_sync(sync_log, "SKIP - item exists", product_id, erp_sku, erp_sku, "Variant already exists")
-			continue
-		# Build attribute map from related_option_values
-		attr_values: Dict[str, str] = {}
-		for val_id in (variant_row.get("related_option_values") or []):
-			key = str(val_id)
-			label = value_id_to_label.get(key)
-			if not label:
-				continue
-			# We must resolve which attribute this value belongs to; derive from options
-			for opt in (full_product.get("options") if isinstance(full_product, dict) else []) or (salla_product.get("options") or []):
-				if any(str(v.get("id")) == key for v in (opt.get("values") or [])):
-					attr_name = _text(opt.get("name"))
-					if attr_name and label:
-						attr_values[attr_name] = label
-					break
-		if not attr_values:
-			log_sync(sync_log, "SKIP - no attributes", product_id, erp_sku, "", "No attribute mapping for variant")
-			continue
-		# Log attempt for observability
-		log_sync(sync_log, "ATTEMPT - variant create", product_id, erp_sku, template_item.name, f"Attr Map: {attr_values}")
-		# Create variant via ERPNext API
-		try:
-			variant = create_variant(template_item.name, {"attributes": [{"attribute": k, "attribute_value": v} for k, v in attr_values.items()]})
-			frappe.db.commit()
-			frappe.log_error("Salla Variant Create", f"Variant created: {variant.name}")
-			# Respect ERPNext naming; set item_code to Salla SKU if permitted
-			try:
-				variant.item_code = erp_sku
-			except Exception:
-				pass
-			# Set Salla fields if present
-			for field, value in [
-				("salla_store", template_item.get("salla_store")),
-				("salla_product_id", product_id),
-				("salla_sku", erp_sku),
-			]:
-				if field in variant.as_dict():
-					try:
-						variant.set(field, value)
-					except Exception:
-						pass
-			variant.save(ignore_permissions=True)
-			# Rename to SKU if ERPNext naming prevented direct item_code set
-			try:
-				if erp_sku and variant.name != erp_sku:
-					from frappe.model.rename_doc import rename_doc
-					rename_doc("Item", variant.name, erp_sku, force=True, merge=False)
-					variant = frappe.get_doc("Item", erp_sku)
-			except Exception as e_rename:
-				frappe.log_error("Salla Variant Rename", f"Rename to SKU failed for {variant.name} -> {erp_sku}: {e_rename}")
-			frappe.db.commit()
-			log_sync(sync_log, "CREATED - variant", product_id, erp_sku, variant.name, f"Attributes: {attr_values}")
-		except Exception as e:
-			msg = str(e)
-			# Gracefully handle missing attribute table by ensuring attributes and skipping if still missing
-			if "Attribute table is mandatory" in msg:
-				try:
-					ensure_attributes_from_options(salla_product, template_item, sync_log=sync_log)
-					template_item.reload()
-				except Exception:
-					pass
-				attr_rows = frappe.db.count("Item Variant Attribute", {"parent": template_item.name})
-				if not (template_item.get("attributes") or []) and not attr_rows:
-					log_sync(sync_log, "SKIP - template missing attributes", product_id, erp_sku, template_item.name, "Attribute table is mandatory")
-					continue
-				# Retry once after ensuring attributes
-				try:
-					variant = create_variant(template_item.name, {"attributes": [{"attribute": k, "attribute_value": v} for k, v in attr_values.items()]})
-					try:
-						variant.item_code = erp_sku
-					except Exception:
-						pass
-					for field, value in [
-						("salla_store", template_item.get("salla_store")),
-						("salla_product_id", product_id),
-						("salla_sku", erp_sku),
-					]:
-						if field in variant.as_dict():
-							try:
-								variant.set(field, value)
-							except Exception:
-								pass
-					variant.save(ignore_permissions=True)
-					try:
-						if erp_sku and variant.name != erp_sku:
-							from frappe.model.rename_doc import rename_doc
-							rename_doc("Item", variant.name, erp_sku, force=True, merge=False)
-							variant = frappe.get_doc("Item", erp_sku)
-					except Exception as e_rename:
-						frappe.log_error("Salla Variant Rename", f"Rename to SKU failed for {variant.name} -> {erp_sku}: {e_rename}")
-					frappe.db.commit()
-					log_sync(sync_log, "CREATED - variant (retry)", product_id, erp_sku, variant.name, f"Attributes: {attr_values}")
-				except Exception as e2:
-					log_sync(sync_log, "ERROR - variant", product_id, erp_sku, "", f"{e2}")
-					frappe.log_error("Salla Variant Creation", f"Failed to create variant (retry) for SKU {erp_sku}: {e2}")
-			else:
-				log_sync(sync_log, "ERROR - variant", product_id, erp_sku, "", msg)
-				frappe.log_error("Salla Variant Creation", f"Failed to create variant for SKU {erp_sku}: {msg}")
+ 
 
 
 def sync_salla_product(store_name: str, salla_product: Dict[str, Any], sync_log=None):
@@ -449,5 +323,6 @@ def sync_salla_product(store_name: str, salla_product: Dict[str, Any], sync_log=
 		frappe.log_error("Salla Product Flow", f"Options pre-sync failed for product {product_id}: {e}")
 	# Ensure template with attributes attached
 	template_item = ensure_template_item(salla_product, store_name, sync_log=sync_log)
-	# Variants creation intentionally disabled per requirements
+	# Create variants from Salla API
+	create_variants_from_api(template_item, salla_product, sync_log=sync_log)
 
