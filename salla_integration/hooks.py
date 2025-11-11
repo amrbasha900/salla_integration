@@ -8,7 +8,7 @@ app_license = "mit"
 # Apps
 # ------------------
 
-# required_apps = []
+required_apps = ["frappe", "erpnext"]
 
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
@@ -41,7 +41,15 @@ app_license = "mit"
 
 # include js in page
 # page_js = {"page" : "public/js/file.js"}
+doctype_js = {
+    "Item": "public/js/item.js",
+    "Sales Order": "public/js/sales_order.js"
+}
 
+doctype_list_js = {
+    "Item": "public/js/item_list.js",
+    "Sales Order": "public/js/sales_order_list.js"
+}
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
@@ -84,11 +92,12 @@ app_license = "mit"
 
 # before_install = "salla_integration.install.before_install"
 # after_install = "salla_integration.install.after_install"
+after_install = "salla_integration.setup.install.after_install"
+after_migrate = "salla_integration.setup.install.after_install"
 
 # Uninstallation
 # ------------
-
-# before_uninstall = "salla_integration.uninstall.before_uninstall"
+before_uninstall = "salla_integration.setup.install.before_uninstall"
 # after_uninstall = "salla_integration.uninstall.after_uninstall"
 
 # Integration Setup
@@ -144,7 +153,21 @@ app_license = "mit"
 # 		"on_trash": "method"
 # 	}
 # }
-
+doc_events = {
+    "Item": {
+        "after_insert": "salla_integration.api.items.after_item_insert",
+        "on_update": "salla_integration.api.items.on_item_update",
+        "on_trash": "salla_integration.api.items.on_item_delete"
+    },
+    "Sales Order": {
+        "on_submit": "salla_integration.api.orders.on_sales_order_submit",
+        "on_cancel": "salla_integration.api.orders.on_sales_order_cancel",
+        "on_update_after_submit": "salla_integration.api.orders.on_sales_order_update"
+    },
+    "Stock Ledger Entry": {
+        "on_submit": "salla_integration.api.items.on_stock_update"
+    }
+}
 # Scheduled Tasks
 # ---------------
 
@@ -165,7 +188,45 @@ app_license = "mit"
 # 		"salla_integration.tasks.monthly"
 # 	],
 # }
-
+scheduler_events = {
+    # Cron jobs - specific times
+    "cron": {
+        # Refresh tokens every day at 2 AM
+        "0 2 * * *": [
+            "salla_integration.tasks.refresh_store_tokens"
+        ],
+        # Sync inventory every 15 minutes
+        "*/15 * * * *": [
+            "salla_integration.tasks.sync_inventory_to_salla"
+        ]
+    },
+    
+    # Run on all scheduler ticks (every 5 minutes by default)
+    "all": [
+        # "salla_integration.tasks.all"
+    ],
+    
+    # Daily tasks
+    "daily": [
+        "salla_integration.tasks.sync_all_stores_daily",
+        "salla_integration.tasks.cleanup_old_sync_logs"
+    ],
+    
+    # Hourly tasks
+    "hourly": [
+        "salla_integration.tasks.check_failed_syncs"
+    ],
+    
+    # Weekly tasks
+    "weekly": [
+        "salla_integration.tasks.generate_weekly_report"
+    ],
+    
+    # Monthly tasks
+    "monthly": [
+        # "salla_integration.tasks.monthly"
+    ]
+}
 # Testing
 # -------
 
@@ -241,4 +302,6 @@ app_license = "mit"
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
-
+default_log_clearing_doctypes = {
+    "Salla Sync Log": 30  # Keep logs for 30 days
+}

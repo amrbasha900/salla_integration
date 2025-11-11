@@ -1,0 +1,85 @@
+{
+	"actions": [],
+	"allow_rename": 0,
+	"creation": "2025-11-09 00:00:00",
+	"doctype": "DocType",
+	"engine": "InnoDB",
+	"istable": 1,
+	"field_order": [
+		"value_id",
+		"value_name",
+		"display_value",
+		"column_break_meta",
+		"price_amount",
+		"currency",
+		"image_url",
+		"section_assoc",
+		"sku_list",
+		"related_option_values"
+	],
+	"fields": [
+		{
+			"fieldname": "value_id",
+			"fieldtype": "Data",
+			"label": "Value ID",
+			"in_list_view": 1
+		},
+		{
+			"fieldname": "value_name",
+			"fieldtype": "Data",
+			"label": "Value Name",
+			"in_list_view": 1
+		},
+		{
+			"fieldname": "display_value",
+			"fieldtype": "Data",
+			"label": "Display Value"
+		},
+		{
+			"fieldname": "column_break_meta",
+			"fieldtype": "Column Break"
+		},
+		{
+			"fieldname": "price_amount",
+			"fieldtype": "Float",
+			"label": "Price Amount"
+		},
+		{
+			"fieldname": "currency",
+			"fieldtype": "Data",
+			"label": "Currency"
+		},
+		{
+			"fieldname": "image_url",
+			"fieldtype": "Data",
+			"label": "Image URL"
+		},
+		{
+			"fieldname": "section_assoc",
+			"fieldtype": "Section Break",
+			"label": "Associations"
+		},
+		{
+			"fieldname": "sku_list",
+			"fieldtype": "Long Text",
+			"label": "Variant SKUs (JSON Array)"
+		},
+		{
+			"fieldname": "related_option_values",
+			"fieldtype": "Long Text",
+			"label": "Related Option Values (JSON Array)"
+		}
+	],
+	"index_web_pages_for_search": 0,
+	"links": [],
+	"modified": "2025-11-09 00:00:00",
+	"modified_by": "Administrator",
+	"module": "Salla Integration",
+	"name": "Salla Product Option Value",
+	"owner": "Administrator",
+	"permissions": [],
+	"sort_field": "modified",
+	"sort_order": "DESC",
+	"states": []
+}
+

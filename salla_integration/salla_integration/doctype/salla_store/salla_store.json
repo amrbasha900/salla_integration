@@ -1,0 +1,306 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:store_name",
+ "creation": "2025-10-15 10:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "basic_details_section",
+  "store_name",
+  "company",
+  "column_break_2",
+  "is_authorized",
+  "section_break_3",
+  "client_id",
+  "client_secret",
+  "column_break_yoql",
+  "redirect_uri",
+  "state_token",
+  "authorization_section",
+  "authorize_button",
+  "revoke_button",
+  "column_break_auth",
+  "authorization_url",
+  "token_details_section",
+  "access_token",
+  "token_expires_at",
+  "column_break_msae",
+  "refresh_token",
+  "merchant_details_section",
+  "merchant_id",
+  "merchant_name",
+  "column_break_merchant",
+  "merchant_email",
+  "sync_settings_section",
+  "enable_product_sync",
+  "enable_order_sync",
+  "column_break_sync",
+  "enable_customer_sync",
+  "enable_inventory_sync",
+  "warehouse",
+  "price_list",
+  "column_break_warehouse",
+  "default_customer_group",
+  "default_territory",
+  "sync_info_section",
+  "last_sync_datetime",
+  "sync_status"
+ ],
+ "fields": [
+  {
+   "fieldname": "basic_details_section",
+   "fieldtype": "Section Break",
+   "label": "Basic Details"
+  },
+  {
+   "fieldname": "store_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Store Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_authorized",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Authorized",
+   "read_only": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_3",
+   "fieldtype": "Section Break",
+   "label": "OAuth Credentials"
+  },
+  {
+   "fieldname": "client_id",
+   "fieldtype": "Data",
+   "label": "Client ID",
+   "reqd": 1
+  },
+  {
+   "fieldname": "client_secret",
+   "fieldtype": "Password",
+   "label": "Client Secret",
+   "reqd": 1
+  },
+  {
+   "fieldname": "redirect_uri",
+   "fieldtype": "Data",
+   "label": "Redirect URI",
+   "read_only": 1
+  },
+  {
+   "fieldname": "state_token",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "State Token",
+   "read_only": 1
+  },
+  {
+   "fieldname": "authorization_section",
+   "fieldtype": "Section Break",
+   "label": "Authorization"
+  },
+  {
+   "fieldname": "authorize_button",
+   "fieldtype": "Button",
+   "label": "Authorize Store"
+  },
+  {
+   "fieldname": "revoke_button",
+   "fieldtype": "Button",
+   "label": "Revoke Authorization"
+  },
+  {
+   "fieldname": "column_break_auth",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "authorization_url",
+   "fieldtype": "Small Text",
+   "label": "Authorization URL",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "token_details_section",
+   "fieldtype": "Section Break",
+   "label": "Token Details"
+  },
+  {
+   "fieldname": "access_token",
+   "fieldtype": "Small Text",
+   "label": "Access Token",
+   "read_only": 1
+  },
+  {
+   "fieldname": "refresh_token",
+   "fieldtype": "Small Text",
+   "label": "Refresh Token",
+   "read_only": 1
+  },
+  {
+   "fieldname": "token_expires_at",
+   "fieldtype": "Datetime",
+   "label": "Token Expires At",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "merchant_details_section",
+   "fieldtype": "Section Break",
+   "label": "Merchant Details"
+  },
+  {
+   "fieldname": "merchant_id",
+   "fieldtype": "Data",
+   "label": "Merchant ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "merchant_name",
+   "fieldtype": "Data",
+   "label": "Merchant Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_merchant",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "merchant_email",
+   "fieldtype": "Data",
+   "label": "Merchant Email",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sync_settings_section",
+   "fieldtype": "Section Break",
+   "label": "Sync Settings"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_product_sync",
+   "fieldtype": "Check",
+   "label": "Enable Product Sync"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_order_sync",
+   "fieldtype": "Check",
+   "label": "Enable Order Sync"
+  },
+  {
+   "fieldname": "column_break_sync",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_customer_sync",
+   "fieldtype": "Check",
+   "label": "Enable Customer Sync"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_inventory_sync",
+   "fieldtype": "Check",
+   "label": "Enable Inventory Sync"
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Default Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "price_list",
+   "fieldtype": "Link",
+   "label": "Price List",
+   "options": "Price List"
+  },
+  {
+   "fieldname": "column_break_warehouse",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "default_customer_group",
+   "fieldtype": "Link",
+   "label": "Default Customer Group",
+   "options": "Customer Group"
+  },
+  {
+   "fieldname": "default_territory",
+   "fieldtype": "Link",
+   "label": "Default Territory",
+   "options": "Territory"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "sync_info_section",
+   "fieldtype": "Section Break",
+   "label": "Sync Information"
+  },
+  {
+   "fieldname": "last_sync_datetime",
+   "fieldtype": "Datetime",
+   "label": "Last Sync Date Time",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sync_status",
+   "fieldtype": "Select",
+   "label": "Sync Status",
+   "options": "\nPending\nIn Progress\nCompleted\nFailed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_msae",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_yoql",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-10-19 17:47:10.022173",
+ "modified_by": "Administrator",
+ "module": "Salla Integration",
+ "name": "Salla Store",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

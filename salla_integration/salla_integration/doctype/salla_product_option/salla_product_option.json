@@ -1,0 +1,139 @@
+{
+ "actions": [],
+ "autoname": "format:{product_sku}-{option_id}-{option_name}",
+ "creation": "2025-11-09 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_main",
+  "salla_store",
+  "product_id",
+  "option_id",
+  "product_sku",
+  "column_break_1",
+  "option_name",
+  "option_type",
+  "required",
+  "display_type",
+  "visibility",
+  "section_values",
+  "values",
+  "section_raw",
+  "raw_json"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_main",
+   "fieldtype": "Section Break",
+   "label": "Option"
+  },
+  {
+   "fieldname": "salla_store",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Salla Store",
+   "options": "Salla Store",
+   "reqd": 1
+  },
+  {
+   "fieldname": "product_id",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "Product ID",
+   "reqd": 1
+  },
+  {
+   "fieldname": "option_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Option ID",
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "option_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Option Name"
+  },
+  {
+   "fieldname": "option_type",
+   "fieldtype": "Data",
+   "label": "Option Type"
+  },
+  {
+   "default": "0",
+   "fieldname": "required",
+   "fieldtype": "Check",
+   "label": "Required"
+  },
+  {
+   "fieldname": "display_type",
+   "fieldtype": "Data",
+   "label": "Display Type"
+  },
+  {
+   "fieldname": "visibility",
+   "fieldtype": "Data",
+   "label": "Visibility"
+  },
+  {
+   "fieldname": "product_sku",
+   "fieldtype": "Data",
+   "label": "Product SKU",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_values",
+   "fieldtype": "Section Break",
+   "label": "Values"
+  },
+  {
+   "fieldname": "values",
+   "fieldtype": "Table",
+   "label": "Option Values",
+   "options": "Salla Product Option Value"
+  },
+  {
+   "fieldname": "section_raw",
+   "fieldtype": "Section Break",
+   "label": "Raw"
+  },
+  {
+   "fieldname": "raw_json",
+   "fieldtype": "Code",
+   "label": "Raw JSON",
+   "options": "JSON"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-11-11 14:44:53.518316",
+ "modified_by": "Administrator",
+ "module": "Salla Integration",
+ "name": "Salla Product Option",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
