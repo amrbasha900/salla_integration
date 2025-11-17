@@ -3,6 +3,7 @@ import json
 from typing import Dict, Any, List
 from salla_integration.utils.salla_client import SallaClient
 from salla_integration.salla_integration.doctype.salla_sync_log.salla_sync_log import create_sync_log
+from salla_integration.salla_integration.doctype.missing_products_sku.missing_products_sku import log_missing_sku
 
 def _text(value) -> str:
     """Coerce any value to trimmed string safely."""
@@ -452,6 +453,10 @@ def sync_product_options(store_name: str, product_or_data: Any, sync_log_name: s
                 product_sku = _text(_safe_get_dict_value(product, "sku"))
                 if not product_sku:
                     # Skip when product has no SKU as requested
+                    try:
+                        log_missing_sku(store_name, product_id, _text(_safe_get_dict_value(product, "name")), "Product", "Options skipped: product missing SKU")
+                    except Exception:
+                        pass
                     continue
                 docname = _ensure_option_doctype(store_name, product_id, product_sku, opt)
                 if docname:

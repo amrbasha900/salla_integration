@@ -6,6 +6,7 @@ from erpnext.controllers.item_variant import create_variant, make_variant_item_c
 from frappe.model.rename_doc import rename_doc
 from salla_integration.utils.salla_client import SallaClient
 from salla_integration.api.options import sync_product_options
+from salla_integration.salla_integration.doctype.missing_products_sku.missing_products_sku import log_missing_sku
 
 
 def _text(value) -> str:
@@ -152,6 +153,11 @@ def create_variants_from_api(template_item, salla_product: Dict[str, Any], sync_
 		sku = _text(variant_data.get("sku"))
 		if not sku:
 			log_sync(sync_log, "SKIP - missing SKU", product_id, "", "", "Variant with empty SKU")
+			# Record in Missing Products SKU doctype
+			try:
+				log_missing_sku(store_name, product_id, _text(full_product.get("name")), "Variant", f"Variant payload skipped (no SKU)")
+			except Exception:
+				pass
 			continue
 		# Skip if already exists
 		if frappe.db.exists("Item", {"item_code": sku}):
@@ -314,6 +320,11 @@ def sync_salla_product(store_name: str, salla_product: Dict[str, Any], sync_log=
 	template_sku = (salla_product.get("sku") or "").strip() if salla_product.get("sku") else ""
 	if not template_sku and not (salla_product.get("skus") or []):
 		log_sync(sync_log, "SKIP - missing SKU", product_id, "", "", "No template SKU and no variant SKUs")
+		# Record in Missing Products SKU doctype
+		try:
+			log_missing_sku(store_name, product_id, _text(salla_product.get("name")), "Product", "Template product missing SKU")
+		except Exception:
+			pass
 		return
 	# First ensure options and Item Attributes exist for this product
 	try:
