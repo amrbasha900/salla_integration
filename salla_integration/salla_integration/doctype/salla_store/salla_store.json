@@ -45,7 +45,10 @@
   "default_territory",
   "sync_info_section",
   "last_sync_datetime",
-  "sync_status"
+  "sync_status",
+  "store_accounting_tab",
+  "taxes_section",
+  "salla_store_tax"
  ],
  "fields": [
   {
@@ -274,11 +277,27 @@
   {
    "fieldname": "column_break_yoql",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "store_accounting_tab",
+   "fieldtype": "Tab Break",
+   "label": "Store Accounting"
+  },
+  {
+   "fieldname": "taxes_section",
+   "fieldtype": "Section Break",
+   "label": "Taxes"
+  },
+  {
+   "fieldname": "salla_store_tax",
+   "fieldtype": "Table",
+   "label": "Salla Store Tax",
+   "options": "Salla Store Tax"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-10-19 17:47:10.022173",
+ "modified": "2025-11-25 22:42:31.955099",
  "modified_by": "Administrator",
  "module": "Salla Integration",
  "name": "Salla Store",

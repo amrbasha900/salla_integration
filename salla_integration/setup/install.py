@@ -65,12 +65,28 @@ def create_salla_custom_fields():
                 "label": "Salla SKU",
                 "fieldtype": "Data",
                 "insert_after": "salla_product_id",
-                "read_only": 1
+                "read_only": 0
+            },
+            {
+                "fieldname": "salla_option_ids",
+                "label": "Salla Option IDs",
+                "fieldtype": "Small Text",
+                "insert_after": "salla_sku",
+                "read_only": 1,
+                "hidden": 1
+            },
+            {
+                "fieldname": "salla_option_value_ids",
+                "label": "Salla Option Value IDs",
+                "fieldtype": "Small Text",
+                "insert_after": "salla_option_ids",
+                "read_only": 0,
+                "hidden": 0
             },
             {
                 "fieldname": "column_break_salla",
                 "fieldtype": "Column Break",
-                "insert_after": "salla_sku"
+                "insert_after": "salla_option_value_ids"
             },
             {
                 "fieldname": "salla_sync_hash",
@@ -142,6 +158,27 @@ def create_salla_custom_fields():
                 "insert_after": "salla_is_from_salla",
                 "read_only": 1,
                 "search_index": 1
+            },
+            {
+                "fieldname": "salla_item_sku",
+                "label": "Salla Item SKU",
+                "fieldtype": "Data",
+                "insert_after": "salla_product_id",
+                "read_only": 1
+            },
+            {
+                "fieldname": "salla_option_value_ids",
+                "label": "Salla Option Value IDs",
+                "fieldtype": "Small Text",
+                "insert_after": "salla_item_sku",
+                "read_only": 1
+            },
+            {
+                "fieldname": "salla_option_summary",
+                "label": "Salla Option Summary",
+                "fieldtype": "Small Text",
+                "insert_after": "salla_option_value_ids",
+                "read_only": 1
             }
         ],
         "Sales Order": [
@@ -186,9 +223,51 @@ def create_salla_custom_fields():
                 "read_only": 1
             },
             {
+                "fieldname": "salla_status_id",
+                "label": "Salla Status ID",
+                "fieldtype": "Data",
+                "insert_after": "salla_reference_id",
+                "read_only": 1
+            },
+            {
+                "fieldname": "salla_status_slug",
+                "label": "Salla Status Slug",
+                "fieldtype": "Data",
+                "insert_after": "salla_status_id",
+                "read_only": 1
+            },
+            {
+                "fieldname": "salla_status_name",
+                "label": "Salla Status Name",
+                "fieldtype": "Data",
+                "insert_after": "salla_status_slug",
+                "read_only": 1
+            },
+            {
+                "fieldname": "salla_payment_status",
+                "label": "Salla Payment Status",
+                "fieldtype": "Data",
+                "insert_after": "salla_status_name",
+                "read_only": 1
+            },
+            {
+                "fieldname": "salla_payment_method",
+                "label": "Salla Payment Method",
+                "fieldtype": "Data",
+                "insert_after": "salla_payment_status",
+                "read_only": 1
+            },
+            {
+                "fieldname": "salla_delivery_method",
+                "label": "Salla Delivery Method",
+                "fieldtype": "Data",
+                "insert_after": "salla_payment_method",
+                "read_only": 1
+            },
+            {
                 "fieldname": "column_break_salla",
                 "fieldtype": "Column Break",
-                "insert_after": "salla_reference_id"
+                "insert_after": "salla_delivery_method"
             },
             {
                 "fieldname": "salla_sync_status",
@@ -244,6 +323,25 @@ def create_salla_custom_fields():
                 "fieldtype": "Datetime",
                 "insert_after": "salla_customer_id",
                 "read_only": 1
+            },
+            {
+                "fieldname": "salla_customer_groups",
+                "label": "Salla Customer Groups",
+                "fieldtype": "Table MultiSelect",
+                "options": "Salla Customer Group",
+                "insert_after": "salla_last_synced",
+                "read_only": 1,
+                "allow_on_submit": 1
+            }
+        ],
+        "Customer Group": [
+            {
+                "fieldname": "salla_customer_id",
+                "label": "Salla Customer ID",
+                "fieldtype": "Data",
+                "insert_after": "is_group",
+                "read_only": 1,
+                "search_index": 1
             }
         ],
         "Item Group": [
@@ -294,6 +392,63 @@ def create_salla_custom_fields():
                 "options": "Salla Store",
                 "insert_after": "salla_is_from_salla",
                 "in_standard_filter": 1
+            },
+            {
+                "fieldname": "salla_logo_url",
+                "label": "Salla Logo URL",
+                "fieldtype": "Data",
+                "insert_after": "salla_store",
+                "read_only": 1
+            },
+            {
+                "fieldname": "salla_banner_url",
+                "label": "Salla Banner URL",
+                "fieldtype": "Data",
+                "insert_after": "salla_logo_url",
+                "read_only": 1
+            },
+            {
+                "fieldname": "salla_metadata_title",
+                "label": "Salla Meta Title",
+                "fieldtype": "Data",
+                "insert_after": "salla_banner_url",
+                "read_only": 1
+            },
+            {
+                "fieldname": "salla_metadata_description",
+                "label": "Salla Meta Description",
+                "fieldtype": "Small Text",
+                "insert_after": "salla_metadata_title",
+                "read_only": 1
+            },
+            {
+                "fieldname": "salla_metadata_url",
+                "label": "Salla Meta URL",
+                "fieldtype": "Data",
+                "insert_after": "salla_metadata_description",
+                "read_only": 1
+            },
+            {
+                "fieldname": "salla_ar_char",
+                "label": "Salla Arabic Character",
+                "fieldtype": "Data",
+                "insert_after": "salla_metadata_url",
+                "read_only": 1
+            },
+            {
+                "fieldname": "salla_en_char",
+                "label": "Salla English Character",
+                "fieldtype": "Data",
+                "insert_after": "salla_ar_char",
+                "read_only": 1
+            },
+            {
+                "fieldname": "salla_translations",
+                "label": "Salla Translations",
+                "fieldtype": "Code",
+                "options": "JSON",
+                "insert_after": "salla_en_char",
+                "read_only": 1
             }
         ],
         "Address": [
@@ -312,6 +467,17 @@ def create_salla_custom_fields():
                 "fieldtype": "Check",
                 "insert_after": "first_name",
                 "read_only": 1
+            }
+        ],
+        "Sales Taxes and Charges Template": [
+            {
+                "fieldname": "salla_tax_id",
+                "label": "Salla Tax ID",
+                "fieldtype": "Data",
+                "insert_after": "disabled",
+                "read_only": 1,
+                "search_index": 1,
+                "description": "Original tax identifier pulled from Salla"
             }
         ]
     }
@@ -337,19 +503,27 @@ def before_uninstall():
         ]),
         ("Customer", [
             "salla_integration_section", "salla_is_from_salla", "salla_store", "salla_customer_id",
-            "salla_last_synced"
+            "salla_last_synced", "salla_customer_groups"
+        ]),
+        ("Customer Group", [
+            "salla_customer_id"
         ]),
         ("Item Group", [
             "salla_category_id", "salla_is_from_salla", "salla_store"
         ]),
         ("Brand", [
-            "salla_brand_id", "salla_is_from_salla", "salla_store"
+            "salla_brand_id", "salla_is_from_salla", "salla_store", "salla_logo_url",
+            "salla_banner_url", "salla_metadata_title", "salla_metadata_description",
+            "salla_metadata_url", "salla_ar_char", "salla_en_char", "salla_translations"
         ]),
         ("Address", [
             "salla_is_from_salla"
         ]),
         ("Contact", [
             "salla_is_from_salla"
+        ]),
+        ("Sales Taxes and Charges Template", [
+            "salla_tax_id"
         ]),
     ]
     for dt, fieldnames in to_delete:

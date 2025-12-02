@@ -3,13 +3,16 @@
 
 import frappe
 from frappe import _
+from salla_integration.api.brands import sync_brands
+from salla_integration.api.customer_groups import sync_customer_groups
+from salla_integration.api.order_statuses import sync_order_statuses
+from salla_integration.api.options import sync_product_options
 from salla_integration.utils.salla_client import SallaClient
-from salla_integration.salla_integration.doctype.salla_sync_log.salla_sync_log import create_sync_log
 from salla_integration.salla_integration.doctype.salla_integration_settings.salla_integration_settings import (
     get_settings, is_integration_enabled
 )
+from salla_integration.salla_integration.doctype.salla_sync_log.salla_sync_log import create_sync_log
 import traceback
-from salla_integration.api.options import sync_product_options
 
 @frappe.whitelist()
 def start_sync(store_name):
@@ -62,6 +65,15 @@ def execute_full_sync(store_name, sync_log_name):
     try:
         # Sync categories
         sync_store_categories(store_name)
+
+        # Sync order statuses
+        sync_store_order_statuses(store_name)
+
+        # Sync brands
+        sync_store_brands(store_name)
+
+        # Sync customer groups before customer data
+        sync_store_customer_groups(store_name)
         
         # Sync products options/attributes
         sync_store_options(store_name)
@@ -109,6 +121,93 @@ def start_options_sync(store_name):
         }
     except Exception as e:
         frappe.log_error("Salla Options Sync Start", f"Failed to start options sync: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@frappe.whitelist()
+def start_customer_group_sync(store_name):
+    """
+    Start only customer group sync for a Salla store (enqueue)
+    """
+    if not is_integration_enabled():
+        frappe.throw(_("Salla Integration is disabled in settings"))
+    try:
+        sync_log = create_sync_log(store_name, "Customer Groups")
+        frappe.enqueue(
+            method="salla_integration.api.sync.sync_store_customer_groups",
+            queue="long",
+            timeout=1800,
+            store_name=store_name,
+            sync_log_name=sync_log.name
+        )
+        return {
+            "success": True,
+            "message": _("Customer group sync job queued successfully"),
+            "sync_log": sync_log.name
+        }
+    except Exception as e:
+        frappe.log_error("Salla Customer Group Sync Start", f"Failed to start customer group sync: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@frappe.whitelist()
+def start_brand_sync(store_name):
+    """
+    Start only brand sync for a Salla store (enqueue)
+    """
+    if not is_integration_enabled():
+        frappe.throw(_("Salla Integration is disabled in settings"))
+    try:
+        sync_log = create_sync_log(store_name, "Brands")
+        frappe.enqueue(
+            method="salla_integration.api.sync.sync_store_brands",
+            queue="long",
+            timeout=1800,
+            store_name=store_name,
+            sync_log_name=sync_log.name
+        )
+        return {
+            "success": True,
+            "message": _("Brand sync job queued successfully"),
+            "sync_log": sync_log.name
+        }
+    except Exception as e:
+        frappe.log_error("Salla Brand Sync Start", f"Failed to start brand sync: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@frappe.whitelist()
+def start_order_status_sync(store_name):
+    """
+    Start only order status sync for a Salla store (enqueue)
+    """
+    if not is_integration_enabled():
+        frappe.throw(_("Salla Integration is disabled in settings"))
+    try:
+        sync_log = create_sync_log(store_name, "Order Statuses")
+        frappe.enqueue(
+            method="salla_integration.api.sync.sync_store_order_statuses",
+            queue="long",
+            timeout=1800,
+            store_name=store_name,
+            sync_log_name=sync_log.name
+        )
+        return {
+            "success": True,
+            "message": _("Order status sync job queued successfully"),
+            "sync_log": sync_log.name
+        }
+    except Exception as e:
+        frappe.log_error("Salla Order Status Sync Start", f"Failed to start order status sync: {str(e)}")
         return {
             "success": False,
             "error": str(e)
@@ -164,6 +263,27 @@ def sync_store_options(store_name, sync_log_name=None):
         tb = traceback.format_exc()
         sync_log.log_failure(error_msg, tb)
         raise
+
+
+def sync_store_customer_groups(store_name, sync_log_name=None):
+    """
+    Sync customer groups for a Salla store.
+    """
+    sync_customer_groups(store_name, sync_log_name=sync_log_name)
+
+
+def sync_store_brands(store_name, sync_log_name=None):
+    """
+    Sync brands for a Salla store.
+    """
+    sync_brands(store_name, sync_log_name=sync_log_name)
+
+
+def sync_store_order_statuses(store_name, sync_log_name=None):
+    """
+    Sync order statuses for a Salla store.
+    """
+    sync_order_statuses(store_name, sync_log_name=sync_log_name)
 
 
 def sync_store_products(store_name):

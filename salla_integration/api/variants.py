@@ -159,10 +159,17 @@ def create_variants_from_api(template_item, salla_product: Dict[str, Any], sync_
 			except Exception:
 				pass
 			continue
-		# Skip if already exists
-		if frappe.db.exists("Item", {"item_code": sku}):
-			log_sync(sync_log, "SKIP - item exists", product_id, sku, sku, "Variant already exists")
+		existing_item = frappe.db.get_value(
+			"Item",
+			{"item_code": sku},
+			["name", "variant_of", "has_variants"],
+			as_dict=True
+		)
+		if existing_item and existing_item.get("variant_of"):
+			# Actual variant already exists
+			log_sync(sync_log, "SKIP - item exists", product_id, sku, existing_item.get("name"), "Variant already exists")
 			continue
+		rename_target = None if (existing_item and not existing_item.get("variant_of")) else sku
 
 		# Map related_option_values -> args {attribute_name: attribute_value_label}
 		args: Dict[str, str] = {}
@@ -184,12 +191,12 @@ def create_variants_from_api(template_item, salla_product: Dict[str, Any], sync_
 		try:
 			# Create variant using standard API
 			variant = create_variant(template_item.name, args)
-			# Set item_code to Salla SKU
 			old_name = variant.name
-			try:
-				variant.item_code = sku
-			except Exception:
-				pass
+			if rename_target:
+				try:
+					variant.item_code = rename_target
+				except Exception:
+					rename_target = None
 			# Set Salla custom fields on variant
 			for field, value in [
 				("salla_is_from_salla", 1),
@@ -208,11 +215,11 @@ def create_variants_from_api(template_item, salla_product: Dict[str, Any], sync_
 			frappe.db.commit()
 
 			# Rename to SKU if needed
-			if variant.name != sku:
+			if rename_target and variant.name != rename_target:
 				try:
-					rename_doc("Item", variant.name, sku, force=True, merge=False)
-					variant = frappe.get_doc("Item", sku)
-					log_sync(sync_log, "RENAMED - variant", product_id, sku, variant.name, f"Renamed from {old_name} to {sku}")
+					rename_doc("Item", variant.name, rename_target, force=True, merge=False)
+					variant = frappe.get_doc("Item", rename_target)
+					log_sync(sync_log, "RENAMED - variant", product_id, sku, variant.name, f"Renamed from {old_name} to {rename_target}")
 				except Exception as e:
 					log_sync(sync_log, "WARN - rename failed", product_id, sku, old_name, f"{e}")
 			log_sync(sync_log, "CREATED - variant", product_id, sku, variant.name, f"Attributes: {args}")

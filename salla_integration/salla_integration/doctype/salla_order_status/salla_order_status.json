@@ -1,0 +1,181 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:{salla_status_id}-{status_name}",
+ "creation": "2025-11-19 15:17:25.734673",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "status_details_section",
+  "salla_store",
+  "salla_status_id",
+  "status_name",
+  "column_break_details",
+  "status_type",
+  "slug",
+  "sort_order",
+  "icon",
+  "is_active",
+  "message_section",
+  "message",
+  "translations_json",
+  "relationships_section",
+  "parent_status_id",
+  "parent_status_name",
+  "column_break_relationships",
+  "original_status_id",
+  "original_status_name"
+ ],
+ "fields": [
+  {
+   "fieldname": "status_details_section",
+   "fieldtype": "Section Break",
+   "label": "Status Details"
+  },
+  {
+   "fieldname": "salla_store",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Salla Store",
+   "options": "Salla Store",
+   "reqd": 1
+  },
+  {
+   "fieldname": "salla_status_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Salla Status ID",
+   "read_only": 1,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "status_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status Name",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_details",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "status_type",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "Status Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "slug",
+   "fieldtype": "Data",
+   "label": "Slug",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sort_order",
+   "fieldtype": "Int",
+   "label": "Sort Order",
+   "read_only": 1
+  },
+  {
+   "fieldname": "icon",
+   "fieldtype": "Data",
+   "label": "Icon",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_standard_filter": 1,
+   "label": "Is Active",
+   "read_only": 1
+  },
+  {
+   "fieldname": "message_section",
+   "fieldtype": "Section Break",
+   "label": "Messaging"
+  },
+  {
+   "fieldname": "message",
+   "fieldtype": "Long Text",
+   "label": "Customer Message",
+   "read_only": 1
+  },
+  {
+   "fieldname": "translations_json",
+   "fieldtype": "Code",
+   "label": "Translations (JSON)",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "relationships_section",
+   "fieldtype": "Section Break",
+   "label": "Relationships"
+  },
+  {
+   "fieldname": "parent_status_id",
+   "fieldtype": "Data",
+   "label": "Parent Status ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "parent_status_name",
+   "fieldtype": "Data",
+   "label": "Parent Status Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_relationships",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "original_status_id",
+   "fieldtype": "Data",
+   "label": "Original Status ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "original_status_name",
+   "fieldtype": "Data",
+   "label": "Original Status Name",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-11-19 16:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Salla Integration",
+ "name": "Salla Order Status",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "status_name,salla_status_id,slug",
+ "sort_field": "status_name",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "status_name",
+ "track_changes": 1
+}

@@ -26,12 +26,19 @@ frappe.ui.form.on('Salla Store', {
                 frm.trigger('sync_now');
             }).addClass('btn-primary');
         }
+
+        frm.trigger('set_tax_account_filter');
+        frm.trigger('add_tax_grid_buttons');
     },
     
     client_id: function(frm) {
         if (frm.doc.client_id && frm.doc.client_secret) {
             frm.trigger('generate_authorization_url');
         }
+    },
+
+    company: function(frm) {
+        frm.trigger('set_tax_account_filter');
     },
     
     client_secret: function(frm) {
@@ -175,5 +182,86 @@ frappe.ui.form.on('Salla Store', {
                 });
             }
         );
+    },
+
+    fetch_store_taxes: function(frm) {
+        if (frm.is_new()) {
+            frappe.msgprint(__('Please save the document before fetching taxes.'));
+            return;
+        }
+
+        frappe.call({
+            method: 'salla_integration.salla_integration.doctype.salla_store.salla_store.fetch_store_taxes',
+            args: {
+                store_name: frm.doc.name
+            },
+            freeze: true,
+            freeze_message: __('Fetching taxes from Salla...'),
+            callback: function() {
+                frm.reload_doc();
+            }
+        });
+    },
+
+    migrate_store_taxes: function(frm) {
+        if (frm.is_new()) {
+            frappe.msgprint(__('Please save the document before migrating taxes.'));
+            return;
+        }
+
+        if (!frm.doc.company) {
+            frappe.msgprint(__('Please select a Company before migrating taxes.'));
+            return;
+        }
+
+        frappe.call({
+            method: 'salla_integration.salla_integration.doctype.salla_store.salla_store.migrate_salla_taxes',
+            args: {
+                store_name: frm.doc.name
+            },
+            freeze: true,
+            freeze_message: __('Creating Sales Tax Templates...')
+        });
+    },
+
+    set_tax_account_filter: function(frm) {
+        const taxGrid = frm.fields_dict.salla_store_tax && frm.fields_dict.salla_store_tax.grid;
+        if (!taxGrid) {
+            return;
+        }
+
+        taxGrid.get_field('tax_account').get_query = function() {
+            if (!frm.doc.company) {
+                return {};
+            }
+
+            return {
+                filters: [
+                    ['Account', 'company', '=', frm.doc.company],
+                    ['Account', 'is_group', '=', 0],
+                    ['Account', 'account_type', 'in', ['Tax', 'Chargeable', 'Income Account', 'Expense Account', 'Expenses Included In Valuation']]
+                ]
+            };
+        };
+    },
+
+    add_tax_grid_buttons: function(frm) {
+        const taxGrid = frm.fields_dict.salla_store_tax && frm.fields_dict.salla_store_tax.grid;
+        if (!taxGrid) {
+            return;
+        }
+
+        if (!frm.doc.is_authorized) {
+            taxGrid.clear_custom_buttons();
+            return;
+        }
+
+        taxGrid.add_custom_button(__('Get Store Taxes'), function() {
+            frm.trigger('fetch_store_taxes');
+        }, 'top');
+
+        taxGrid.add_custom_button(__('Migrate Taxes'), function() {
+            frm.trigger('migrate_store_taxes');
+        }, 'top');
     }
 });

@@ -191,6 +191,13 @@ class SallaClient:
         """Get single order by ID"""
         return self._make_request("GET", f"/orders/{order_id}")
     
+    def get_order_items(self, order_id: str) -> Dict[str, Any]:
+        """
+        List items for a specific order
+        """
+        params = {"order_id": order_id}
+        return self._make_request("GET", "/orders/items", params=params)
+    
     def update_order_status(self, order_id: str, status: str) -> Dict[str, Any]:
         """
         Update order status
@@ -201,6 +208,12 @@ class SallaClient:
         """
         data = {"status": status}
         return self._make_request("PUT", f"/orders/{order_id}/status", data=data)
+    
+    def get_order_statuses(self) -> Dict[str, Any]:
+        """
+        List all order statuses configured in the Salla store.
+        """
+        return self._make_request("GET", "/orders/statuses")
     
     # ==================== Customer Methods ====================
     
@@ -216,6 +229,14 @@ class SallaClient:
     def get_customer(self, customer_id: str) -> Dict[str, Any]:
         """Get single customer by ID"""
         return self._make_request("GET", f"/customers/{customer_id}")
+
+    def get_customer_groups(self, page: int = 1, per_page: int = 60) -> Dict[str, Any]:
+        """List customer groups"""
+        params = {
+            "page": page,
+            "per_page": min(per_page, self.MAX_PER_PAGE)
+        }
+        return self._make_request("GET", "/customers/groups", params=params)
     
     # ==================== Category Methods ====================
     
@@ -230,14 +251,32 @@ class SallaClient:
     
     # ==================== Brand Methods ====================
     
-    def get_brands(self, page: int = 1, per_page: int = 60) -> Dict[str, Any]:
+    def get_brands(self, page: int = 1, per_page: int = 60, include_translations: bool = False) -> Dict[str, Any]:
         """Get product brands"""
         params = {
             "page": page,
             "per_page": min(per_page, self.MAX_PER_PAGE)
         }
+        if include_translations:
+            params["with"] = "translations"
         
         return self._make_request("GET", "/brands", params=params)
+    
+    def get_brand(self, brand_id: str) -> Dict[str, Any]:
+        """Get single brand by ID"""
+        return self._make_request("GET", f"/brands/{brand_id}")
+    
+    # ==================== Tax Methods ====================
+    
+    def get_taxes(self, page: int = 1, per_page: int = 60) -> Dict[str, Any]:
+        """
+        List store taxes configured in Salla.
+        """
+        params = {
+            "page": page,
+            "per_page": min(per_page, self.MAX_PER_PAGE)
+        }
+        return self._make_request("GET", "/taxes", params=params)
     
     # ==================== Utility Methods ====================
     

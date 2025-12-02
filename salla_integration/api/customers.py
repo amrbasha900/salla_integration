@@ -4,6 +4,7 @@
 import frappe
 from frappe import _
 from frappe.utils import now
+from salla_integration.api.customer_groups import resolve_customer_groups
 from salla_integration.salla_integration.doctype.salla_integration_settings.salla_integration_settings import (
     get_settings, should_auto_create_customers
 )
@@ -85,6 +86,8 @@ def create_customer_from_salla(customer_data, store_name):
     if customer_data.get('mobile') or customer_data.get('phone'):
         customer.mobile_no = customer_data.get('mobile') or customer_data.get('phone')
     
+    update_customer_group_links(customer, store_name, customer_data)
+
     try:
         customer.insert(ignore_permissions=True)
         frappe.db.commit()
@@ -132,6 +135,7 @@ def update_customer_from_salla(customer_name, customer_data, store_name):
         customer.mobile_no = customer_data.get('mobile') or customer_data.get('phone')
     
     customer.salla_last_synced = now()
+    update_customer_group_links(customer, store_name, customer_data)
     
     try:
         customer.save(ignore_permissions=True)
@@ -355,3 +359,61 @@ def link_contact_to_customer(contact_name, customer_name):
     
     contact.save(ignore_permissions=True)
     frappe.db.commit()
+
+
+def update_customer_group_links(customer_doc, store_name, customer_data):
+    """
+    Update the Salla Customer Group child table on a Customer doc.
+    """
+    if not customer_doc or not customer_doc.meta.get_field("salla_customer_groups"):
+        return
+
+    groups = _extract_salla_groups(customer_data)
+    customer_doc.set("salla_customer_groups", [])
+
+    if not groups:
+        return
+
+    resolved_groups = resolve_customer_groups(store_name, groups)
+    if not resolved_groups:
+        return
+
+    for group_name in resolved_groups:
+        customer_doc.append("salla_customer_groups", {"customer_group": group_name})
+
+    # Use the first resolved group as the primary customer group if available
+    if resolved_groups[0]:
+        customer_doc.customer_group = resolved_groups[0]
+
+
+def _extract_salla_groups(customer_data):
+    """
+    Normalize the groups payload returned by Salla customers endpoint.
+    """
+    if not customer_data:
+        return []
+
+    groups = customer_data.get("groups") or customer_data.get("customer_groups")
+    if not groups:
+        return []
+
+    # API might return dicts with nested data arrays
+    if isinstance(groups, dict):
+        if groups.get("data") and isinstance(groups.get("data"), list):
+            groups = groups.get("data")
+        else:
+            groups = [groups]
+
+    if not isinstance(groups, list):
+        groups = [groups]
+
+    normalized = []
+    for entry in groups:
+        if not entry:
+            continue
+        if isinstance(entry, dict) and entry.get("data") and isinstance(entry["data"], list):
+            normalized.extend(entry["data"])
+        else:
+            normalized.append(entry)
+
+    return normalized

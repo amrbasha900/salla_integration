@@ -9,6 +9,7 @@ from salla_integration.salla_integration.doctype.salla_integration_settings.sall
 )
 import hashlib
 import json
+from salla_integration.api.brands import upsert_brand
 from salla_integration.api.options import sync_product_options
 
 def sync_products(store_name, product_data):
@@ -242,23 +243,13 @@ def get_or_create_item_group(category_data, store_name):
 
 def get_or_create_brand(brand_data, store_name):
     """
-    Get or create Brand from Salla brand
-    
-    Args:
-        brand_data: Brand data from Salla
-        store_name: Name of Salla Store
-        
-    Returns:
-        Brand name
+    Get or create Brand from Salla brand payload or ID.
     """
     if isinstance(brand_data, dict):
-        brand_id = str(brand_data.get('id'))
-        brand_name = brand_data.get('name', f"Brand {brand_id}")
-    else:
-        brand_id = str(brand_data)
-        brand_name = f"Brand {brand_id}"
+        return upsert_brand(store_name, brand_data)
     
-    # Check if already exists
+    brand_id = str(brand_data)
+    
     existing = frappe.db.get_value(
         "Brand",
         {"salla_brand_id": brand_id, "salla_store": store_name},
@@ -268,7 +259,19 @@ def get_or_create_brand(brand_data, store_name):
     if existing:
         return existing
     
-    # Create new brand
+    # Try fetching details from Salla for richer metadata
+    try:
+        from salla_integration.utils.salla_client import SallaClient
+        client = SallaClient(store_name)
+        response = client.get_brand(brand_id)
+        brand_payload = response.get("data") if isinstance(response, dict) else response
+        if isinstance(brand_payload, dict):
+            return upsert_brand(store_name, brand_payload)
+    except Exception:
+        pass
+    
+    # Fallback: create placeholder brand with minimal info
+    brand_name = f"Brand {brand_id}"
     brand = frappe.get_doc({
         "doctype": "Brand",
         "brand": brand_name,
@@ -1027,52 +1030,6 @@ def get_or_create_item_group(category_data, store_name):
     except Exception as e:
         frappe.log_error("Salla Item Group Creation", f"Failed to create item group: {str(e)}")
         return "All Item Groups"
-
-
-def get_or_create_brand(brand_data, store_name):
-    """
-    Get or create Brand from Salla brand
-    
-    Args:
-        brand_data: Brand data from Salla
-        store_name: Name of Salla Store
-        
-    Returns:
-        Brand name
-    """
-    if isinstance(brand_data, dict):
-        brand_id = str(brand_data.get('id'))
-        brand_name = brand_data.get('name', f"Brand {brand_id}")
-    else:
-        brand_id = str(brand_data)
-        brand_name = f"Brand {brand_id}"
-    
-    # Check if already exists
-    existing = frappe.db.get_value(
-        "Brand",
-        {"salla_brand_id": brand_id, "salla_store": store_name},
-        "name"
-    )
-    
-    if existing:
-        return existing
-    
-    # Create new brand
-    brand = frappe.get_doc({
-        "doctype": "Brand",
-        "brand": brand_name,
-        "salla_is_from_salla": 1,
-        "salla_brand_id": brand_id,
-        "salla_store": store_name
-    })
-    
-    try:
-        brand.insert(ignore_permissions=True)
-        frappe.db.commit()
-        return brand.name
-    except Exception as e:
-        frappe.log_error("Salla Brand Creation", f"Failed to create brand: {str(e)}")
-        return None
 
 
 def create_item_price(item_code, price, price_list):
