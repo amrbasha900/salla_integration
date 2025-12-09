@@ -108,18 +108,55 @@ class SallaStore(Document):
         if not self.access_token:
             return
         
-        user_info_url = "https://accounts.salla.sa/oauth2/user/info"
+        store_info_url = "https://api.salla.dev/admin/v2/store/info"
         headers = {"Authorization": f"Bearer {self.access_token}"}
         
         try:
-            response = requests.get(user_info_url, headers=headers, timeout=30)
+            response = requests.get(store_info_url, headers=headers, timeout=30)
             response.raise_for_status()
             
-            merchant_data = response.json()
-            
-            self.merchant_id = merchant_data.get("id")
-            self.merchant_email = merchant_data.get("email")
+            payload = response.json() or {}
+            merchant_data = payload.get("data") or {}
+
+            # Core store details
+            merchant_id = merchant_data.get("id")
+            self.merchant_id = str(merchant_id) if merchant_id is not None else None
+            self.merchant_username = merchant_data.get("username")
             self.merchant_name = merchant_data.get("name")
+            self.merchant_entity = merchant_data.get("entity")
+            self.merchant_email = merchant_data.get("email")
+            self.merchant_mobile = merchant_data.get("mobile")
+            self.merchant_phone = merchant_data.get("phone")
+            self.merchant_avatar = merchant_data.get("avatar")
+            self.merchant_store_location = merchant_data.get("store_location")
+            self.merchant_plan = merchant_data.get("plan")
+            self.merchant_type = merchant_data.get("type")
+            self.merchant_status = merchant_data.get("status")
+            self.merchant_verified = 1 if merchant_data.get("verified") else 0
+            self.merchant_currency = merchant_data.get("currency")
+            self.merchant_domain = merchant_data.get("domain")
+            self.merchant_about = merchant_data.get("about") or merchant_data.get("description")
+            self.merchant_created_at = merchant_data.get("created_at")
+            
+            # Licenses block
+            licenses = merchant_data.get("licenses") or {}
+            self.license_tax_number = licenses.get("tax_number")
+            self.license_commercial_number = licenses.get("commercial_number")
+            self.license_freelance_number = licenses.get("freelance_number")
+            
+            # Social block
+            social = merchant_data.get("social") or {}
+            self.social_website = social.get("website")
+            self.social_telegram = social.get("telegram")
+            self.social_twitter = social.get("twitter")
+            # Some responses use 'facebookb'; fall back if present
+            self.social_facebook = social.get("facebook") or social.get("facebookb")
+            self.social_maroof = social.get("maroof")
+            self.social_youtube = social.get("youtube")
+            self.social_snapchat = social.get("snapchat")
+            self.social_whatsapp = social.get("whatsapp")
+            self.social_appstore_link = social.get("appstore_link")
+            self.social_googleplay_link = social.get("googleplay_link")
             
         except Exception as e:
             frappe.log_error(f"Failed to fetch merchant info: {str(e)}", "Salla Merchant Info")
@@ -254,7 +291,13 @@ class SallaStore(Document):
                 added += 1
 
         if added or updated:
-            self.save(ignore_permissions=True)
+            self.set_parent_in_children()
+            self.set_name_in_children()
+
+            for idx, row in enumerate(self.get("salla_store_tax"), start=1):
+                row.idx = idx
+
+            self.update_child_table("salla_store_tax")
             frappe.db.commit()
 
         message = _("Fetched {0} taxes from Salla. Added {1}, updated {2}.").format(
@@ -266,147 +309,6 @@ class SallaStore(Document):
         frappe.msgprint(message)
         return {"fetched": processed, "added": added, "updated": updated}
 
-    @frappe.whitelist()
-    def migrate_salla_taxes(self):
-        """Create or update Sales Taxes and Charges Templates based on mapped taxes."""
-        if self.is_new():
-            frappe.throw(_("Please save the store before migrating taxes."))
-
-        if not self.company:
-            frappe.throw(_("Please set the Company before migrating taxes."))
-
-        rows = self.get("salla_store_tax") or []
-        if not rows:
-            frappe.throw(_("Please fetch taxes from Salla first."))
-
-        created = 0
-        updated = 0
-        missing_account = 0
-        invalid_company = 0
-        missing_tax_id = 0
-
-        for row in rows:
-            if not row.tax_account:
-                missing_account += 1
-                continue
-
-            account_company = frappe.db.get_value("Account", row.tax_account, "company")
-            if account_company and account_company != self.company:
-                invalid_company += 1
-                continue
-
-            tax_id = (row.tax_id or "").strip()
-            if not tax_id:
-                missing_tax_id += 1
-                continue
-
-            tax_rate = flt(row.tax)
-            template_title = self._build_tax_template_title(row)
-            template_filters = {"title": template_title, "company": self.company}
-            existing_template_name = frappe.db.get_value(
-                "Sales Taxes and Charges Template",
-                {"company": self.company, "salla_tax_id": tax_id},
-                "name",
-            )
-            if not existing_template_name:
-                existing_template_name = frappe.db.exists(
-                    "Sales Taxes and Charges Template", template_filters
-                )
-
-            disabled = 0 if (row.status or "").lower() == "active" else 1
-            tax_detail = {
-                "charge_type": "On Net Total",
-                "account_head": row.tax_account,
-                "rate": tax_rate,
-                "description": self._build_tax_description(row),
-            }
-
-            if existing_template_name:
-                template = frappe.get_doc(
-                    "Sales Taxes and Charges Template", existing_template_name
-                )
-                detail_row = next(
-                    (d for d in template.taxes if d.account_head == row.tax_account),
-                    None,
-                )
-                changed = False
-
-                if detail_row:
-                    if flt(detail_row.rate) != tax_rate:
-                        detail_row.rate = tax_rate
-                        changed = True
-
-                    if detail_row.charge_type != "On Net Total":
-                        detail_row.charge_type = "On Net Total"
-                        changed = True
-
-                    if (detail_row.description or "").strip() != tax_detail["description"]:
-                        detail_row.description = tax_detail["description"]
-                        changed = True
-                else:
-                    template.append("taxes", tax_detail)
-                    changed = True
-
-                if (template.salla_tax_id or "").strip() != tax_id:
-                    template.salla_tax_id = tax_id
-                    changed = True
-
-                if template.disabled != disabled:
-                    template.disabled = disabled
-                    changed = True
-
-                if changed:
-                    template.save(ignore_permissions=True)
-                    updated += 1
-            else:
-                template = frappe.get_doc(
-                    {
-                        "doctype": "Sales Taxes and Charges Template",
-                        "title": template_title,
-                        "company": self.company,
-                        "salla_tax_id": tax_id,
-                        "disabled": disabled,
-                        "taxes": [tax_detail],
-                    }
-                )
-                template.insert(ignore_permissions=True)
-                created += 1
-
-        if created or updated:
-            frappe.db.commit()
-
-        message = _("Migration complete. Created: {0}, updated: {1}, skipped (no tax account): {2}, skipped (missing Salla tax ID): {3}.").format(
-            created, updated, missing_account, missing_tax_id
-        )
-        if invalid_company:
-            message += " " + _(
-                "Skipped {0} rows because the selected Tax Account belongs to another company."
-            ).format(invalid_company)
-
-        frappe.msgprint(message)
-        return {
-            "created": created,
-            "updated": updated,
-            "skipped_without_account": missing_account,
-            "skipped_invalid_company": invalid_company,
-            "skipped_without_tax_id": missing_tax_id,
-        }
-
-    def _build_tax_template_title(self, tax_row):
-        """Build a deterministic Sales Tax Template title for a Salla tax row."""
-        store_label = self.store_name or self.name
-        country = tax_row.country or _("General")
-        tax_rate = flt(tax_row.tax)
-        tax_id = tax_row.tax_id or _("Unknown")
-        return f"{store_label} - {country} - {tax_rate:.2f}% (Salla Tax {tax_id})"
-
-    def _build_tax_description(self, tax_row):
-        """Return a user-friendly description for the Sales Tax row."""
-        country = tax_row.country or _("General")
-        status = (tax_row.status or _("unknown")).title()
-        tax_id = tax_row.tax_id or _("Unknown")
-        return f"{country} - {status} (Salla Tax {tax_id})"
-
 
 @frappe.whitelist()
 def fetch_store_taxes(store_name: str):
@@ -416,13 +318,3 @@ def fetch_store_taxes(store_name: str):
 
     doc = frappe.get_doc("Salla Store", store_name)
     return doc.fetch_store_taxes()
-
-
-@frappe.whitelist()
-def migrate_salla_taxes(store_name: str):
-    """Wrapper to migrate taxes for a given store via RPC."""
-    if not store_name:
-        frappe.throw(_("Store name is required."))
-
-    doc = frappe.get_doc("Salla Store", store_name)
-    return doc.migrate_salla_taxes()

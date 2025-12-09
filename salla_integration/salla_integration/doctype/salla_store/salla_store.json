@@ -27,11 +27,6 @@
   "token_expires_at",
   "column_break_msae",
   "refresh_token",
-  "merchant_details_section",
-  "merchant_id",
-  "merchant_name",
-  "column_break_merchant",
-  "merchant_email",
   "sync_settings_section",
   "enable_product_sync",
   "enable_order_sync",
@@ -46,7 +41,47 @@
   "sync_info_section",
   "last_sync_datetime",
   "sync_status",
+  "merchant_info_tab",
+  "merchant_details_section",
+  "merchant_id",
+  "merchant_username",
+  "merchant_name",
+  "merchant_email",
+  "merchant_mobile",
+  "merchant_plan",
+  "merchant_type",
+  "merchant_phone",
+  "merchant_entity",
+  "column_break_merchant",
+  "merchant_status",
+  "merchant_verified",
+  "merchant_currency",
+  "merchant_domain",
+  "merchant_store_location",
+  "merchant_avatar",
+  "merchant_about",
+  "merchant_created_at",
+  "licenses_section",
+  "license_tax_number",
+  "license_commercial_number",
+  "column_break_ffyx",
+  "license_freelance_number",
+  "social_section",
+  "social_website",
+  "social_whatsapp",
+  "social_telegram",
+  "social_twitter",
+  "social_facebook",
+  "column_break_adpk",
+  "social_maroof",
+  "social_youtube",
+  "social_snapchat",
+  "social_googleplay_link",
+  "social_appstore_link",
   "store_accounting_tab",
+  "shipping_cost",
+  "column_break_grjy",
+  "cash_on_delivery_fee",
   "taxes_section",
   "salla_store_tax"
  ],
@@ -166,13 +201,14 @@
    "collapsible": 1,
    "fieldname": "merchant_details_section",
    "fieldtype": "Section Break",
-   "label": "Merchant Details"
+   "label": "Store Information"
   },
   {
    "fieldname": "merchant_id",
    "fieldtype": "Data",
    "label": "Merchant ID",
-   "read_only": 1
+   "read_only": 1,
+   "unique": 1
   },
   {
    "fieldname": "merchant_name",
@@ -293,11 +329,219 @@
    "fieldtype": "Table",
    "label": "Salla Store Tax",
    "options": "Salla Store Tax"
+  },
+  {
+   "fieldname": "shipping_cost",
+   "fieldtype": "Link",
+   "label": "Shipping Cost",
+   "link_filters": "[[\"Item\",\"is_stock_item\",\"=\",0]]",
+   "options": "Item"
+  },
+  {
+   "fieldname": "column_break_grjy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "cash_on_delivery_fee",
+   "fieldtype": "Link",
+   "label": "Cash on Delivery Fee",
+   "link_filters": "[[\"Item\",\"is_stock_item\",\"=\",0]]",
+   "options": "Item"
+  },
+  {
+   "fieldname": "merchant_info_tab",
+   "fieldtype": "Tab Break",
+   "label": "Merchant Info"
+  },
+  {
+   "fieldname": "merchant_username",
+   "fieldtype": "Data",
+   "label": "Username",
+   "read_only": 1
+  },
+  {
+   "fieldname": "merchant_entity",
+   "fieldtype": "Select",
+   "label": "Entity",
+   "options": "\nperson\ncompany\ncharity\nfirm",
+   "read_only": 1
+  },
+  {
+   "fieldname": "merchant_mobile",
+   "fieldtype": "Data",
+   "label": "Mobile",
+   "read_only": 1
+  },
+  {
+   "fieldname": "merchant_phone",
+   "fieldtype": "Data",
+   "label": "Phone",
+   "read_only": 1
+  },
+  {
+   "fieldname": "merchant_avatar",
+   "fieldtype": "Data",
+   "label": "Avatar URL",
+   "read_only": 1
+  },
+  {
+   "fieldname": "merchant_store_location",
+   "fieldtype": "Data",
+   "label": "Store Location",
+   "read_only": 1
+  },
+  {
+   "fieldname": "merchant_plan",
+   "fieldtype": "Select",
+   "label": "Plan",
+   "options": "\nbasic\nplus\npro\nspecial",
+   "read_only": 1
+  },
+  {
+   "fieldname": "merchant_type",
+   "fieldtype": "Select",
+   "label": "Store Type",
+   "options": "\ndemo\ndevelopment\nlive",
+   "read_only": 1
+  },
+  {
+   "fieldname": "merchant_status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "\nactive\ninactive",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "merchant_verified",
+   "fieldtype": "Check",
+   "label": "Verified",
+   "read_only": 1
+  },
+  {
+   "fieldname": "merchant_currency",
+   "fieldtype": "Data",
+   "label": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "merchant_domain",
+   "fieldtype": "Data",
+   "label": "Domain",
+   "read_only": 1
+  },
+  {
+   "fieldname": "merchant_about",
+   "fieldtype": "Small Text",
+   "label": "About",
+   "read_only": 1
+  },
+  {
+   "fieldname": "merchant_created_at",
+   "fieldtype": "Datetime",
+   "label": "Created At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "licenses_section",
+   "fieldtype": "Section Break",
+   "label": "Licenses"
+  },
+  {
+   "fieldname": "license_tax_number",
+   "fieldtype": "Data",
+   "label": "Tax Number",
+   "read_only": 1
+  },
+  {
+   "fieldname": "license_commercial_number",
+   "fieldtype": "Data",
+   "label": "Commercial Number",
+   "read_only": 1
+  },
+  {
+   "fieldname": "license_freelance_number",
+   "fieldtype": "Data",
+   "label": "Freelance Number",
+   "read_only": 1
+  },
+  {
+   "fieldname": "social_section",
+   "fieldtype": "Section Break",
+   "label": "Social Accounts"
+  },
+  {
+   "fieldname": "social_website",
+   "fieldtype": "Data",
+   "label": "Website",
+   "read_only": 1
+  },
+  {
+   "fieldname": "social_telegram",
+   "fieldtype": "Data",
+   "label": "Telegram",
+   "read_only": 1
+  },
+  {
+   "fieldname": "social_twitter",
+   "fieldtype": "Data",
+   "label": "Twitter",
+   "read_only": 1
+  },
+  {
+   "fieldname": "social_facebook",
+   "fieldtype": "Data",
+   "label": "Facebook",
+   "read_only": 1
+  },
+  {
+   "fieldname": "social_maroof",
+   "fieldtype": "Data",
+   "label": "Maroof",
+   "read_only": 1
+  },
+  {
+   "fieldname": "social_youtube",
+   "fieldtype": "Data",
+   "label": "YouTube",
+   "read_only": 1
+  },
+  {
+   "fieldname": "social_snapchat",
+   "fieldtype": "Data",
+   "label": "Snapchat",
+   "read_only": 1
+  },
+  {
+   "fieldname": "social_whatsapp",
+   "fieldtype": "Data",
+   "label": "WhatsApp",
+   "read_only": 1
+  },
+  {
+   "fieldname": "social_appstore_link",
+   "fieldtype": "Data",
+   "label": "App Store Link",
+   "read_only": 1
+  },
+  {
+   "fieldname": "social_googleplay_link",
+   "fieldtype": "Data",
+   "label": "Google Play Link",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_ffyx",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_adpk",
+   "fieldtype": "Column Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-11-25 22:42:31.955099",
+ "modified": "2025-12-09 13:47:52.427758",
  "modified_by": "Administrator",
  "module": "Salla Integration",
  "name": "Salla Store",

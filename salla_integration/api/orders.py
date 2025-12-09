@@ -175,27 +175,29 @@ def _item_option_field_available() -> bool:
         return False
 
 
-def _get_tax_template_by_percent(company: str, percent: float) -> Optional[str]:
+def _get_tax_template_by_percent(store_name: str, percent: float) -> Optional[str]:
+    """Return the Sales Taxes template linked on the Salla Store for the given rate."""
+    if not store_name:
+        return None
+
     try:
-        template_names = frappe.get_all(
-            "Sales Taxes and Charges Template",
-            filters={"company": company, "disabled": 0},
-            pluck="name",
-        )
+        store = frappe.get_cached_doc("Salla Store", store_name)
     except Exception:
         return None
-    for name in template_names:
-        try:
-            template = frappe.get_cached_doc("Sales Taxes and Charges Template", name)
-        except Exception:
+
+    for row in store.get("salla_store_tax") or []:
+        template = row.get("sales_taxes_and_charges_template")
+        if not template:
             continue
-        for tax in template.taxes:
-            try:
-                tax_rate = float(tax.rate)
-            except (TypeError, ValueError):
-                continue
-            if abs(tax_rate - percent) < 0.001:
-                return template.name
+
+        status = (row.status or "").lower()
+        if status and status != "active":
+            continue
+
+        row_rate = flt(row.get("tax"))
+        if abs(row_rate - percent) < 0.001:
+            return template
+
     return None
 
 
@@ -296,23 +298,25 @@ def _find_item_code(
     return None
 
 
-def check_taxes(store_name: str, order_id: str, sales_order) -> None:
+def check_taxes(store_name: str, order_id: str, sales_order, order_payload: Optional[Dict[str, Any]] = None) -> None:
     """
     Fetch order details from Salla to determine applicable tax template and apply it to the Sales Order.
     """
     if not store_name or not order_id:
         return
-    try:
-        client = SallaClient(store_name)
-        detailed = client.get_order(order_id)
-    except Exception:
-        return
-
-    if not isinstance(detailed, dict):
-        return
-    payload = detailed.get("data") if "data" in detailed else detailed
+    payload = order_payload
     if not isinstance(payload, dict):
-        return
+        try:
+            client = SallaClient(store_name)
+            detailed = client.get_order(order_id)
+        except Exception:
+            return
+
+        if not isinstance(detailed, dict):
+            return
+        payload = detailed.get("data") if "data" in detailed else detailed
+        if not isinstance(payload, dict):
+            return
 
     amounts = payload.get("amounts")
     if not isinstance(amounts, dict):
@@ -329,7 +333,7 @@ def check_taxes(store_name: str, order_id: str, sales_order) -> None:
     except (TypeError, ValueError):
         return
 
-    template_name = _get_tax_template_by_percent(sales_order.company, percent_value)
+    template_name = _get_tax_template_by_percent(store_name, percent_value)
     if template_name:
         _apply_tax_template(sales_order, template_name)
 
@@ -344,6 +348,80 @@ def _get_item_rate(item_data: Dict[str, Any]) -> float:
     if rate in (None, ""):
         rate = (((item_data.get("amounts") or {}).get("total") or {}).get("amount"))
     return flt(rate or 0)
+
+
+def _extract_amount_value(raw_value: Any) -> float:
+    """Safely pull numeric amount from nested structures."""
+    if raw_value in (None, ""):
+        return 0.0
+
+    if isinstance(raw_value, dict):
+        if "amount" in raw_value:
+            return _extract_amount_value(raw_value.get("amount"))
+        if "value" in raw_value:
+            return _extract_amount_value(raw_value.get("value"))
+        return 0.0
+
+    try:
+        return flt(raw_value or 0)
+    except Exception:
+        return 0.0
+
+
+def _append_charge_item(sales_order, item_code: str, amount: float, label: str):
+    if not item_code or amount <= 0:
+        return
+
+    sales_order.append(
+        "items",
+        {
+            "item_code": item_code,
+            "qty": 1,
+            "rate": amount,
+            "description": label,
+            "salla_is_from_salla": 1,
+        },
+    )
+
+
+def _append_order_level_charges(order_data, store, sales_order):
+    amounts = order_data.get("amounts") or {}
+    shipping_amount = _extract_amount_value(amounts.get("shipping_cost"))
+    if shipping_amount > 0 and store.shipping_cost:
+        _append_charge_item(
+            sales_order,
+            store.shipping_cost,
+            shipping_amount,
+            _("Shipping Cost"),
+        )
+
+    cod_amount = _extract_amount_value(amounts.get("cash_on_delivery"))
+    if cod_amount > 0 and store.cash_on_delivery_fee:
+        _append_charge_item(
+            sales_order,
+            store.cash_on_delivery_fee,
+            cod_amount,
+            _("Cash on Delivery Fee"),
+        )
+
+
+def _apply_discount_from_amounts(order_data, sales_order):
+    amounts = order_data.get("amounts") or {}
+    discounts = amounts.get("discounts") or []
+    if not isinstance(discounts, list):
+        return
+
+    total_discount = 0.0
+    for discount_row in discounts:
+        discount_value = _extract_amount_value(discount_row.get("discount"))
+        total_discount += discount_value
+
+    total_discount = flt(total_discount)
+    if total_discount <= 0:
+        return
+
+    sales_order.apply_discount_on = "Net Total"
+    sales_order.discount_amount = total_discount
 
 def sync_order(store_name, order_data):
     """
@@ -406,6 +484,7 @@ def create_sales_order_from_salla(order_data, store_name):
 
     items: List[Dict[str, Any]] = []
     client = None
+    order_payload: Optional[Dict[str, Any]] = None
     if order_id:
         try:
             client = SallaClient(store_name)
@@ -416,6 +495,18 @@ def create_sales_order_from_salla(order_data, store_name):
                 f"Failed to fetch order items from Salla for order {order_id}: {e}",
                 "Salla Order Item Fetch"
             )
+        if client:
+            try:
+                detailed = client.get_order(order_id)
+                if isinstance(detailed, dict):
+                    payload_candidate = detailed.get("data") if "data" in detailed else detailed
+                    if isinstance(payload_candidate, dict):
+                        order_payload = payload_candidate
+            except Exception as e:
+                frappe.log_error(
+                    f"Failed to fetch order details from Salla for order {order_id}: {e}",
+                    "Salla Order Details Fetch"
+                )
     if not items:
         items = list(order_data.get('items') or [])
     order_data['items'] = items
@@ -444,20 +535,38 @@ def create_sales_order_from_salla(order_data, store_name):
         "items": []
     })
 
-    check_taxes(store_name, order_id, sales_order)
+    check_taxes(store_name, order_id, sales_order, order_payload)
+    product_line_added = False
     # Add order items
     for item_data in items:
         sales_order_item = prepare_sales_order_item(item_data, store_name)
         if sales_order_item:
             sales_order.append("items", sales_order_item)
+            product_line_added = True
     
-    if not sales_order.items:
+    if not product_line_added:
         frappe.throw(_("No valid items found in Salla order {0}").format(order_data.get('id')))
+
+    payload_for_amounts = order_payload or order_data
+    _append_order_level_charges(payload_for_amounts, store, sales_order)
+    _apply_discount_from_amounts(payload_for_amounts, sales_order)
     
     # Set warehouse if configured
     if store.warehouse:
+        stock_map: Dict[str, int] = {}
         for item in sales_order.items:
-            item.warehouse = store.warehouse
+            item_code = item.get("item_code")
+            if not item_code:
+                continue
+            is_stock = stock_map.get(item_code)
+            if is_stock is None:
+                try:
+                    is_stock = int(frappe.get_cached_value("Item", item_code, "is_stock_item") or 0)
+                except Exception:
+                    is_stock = 0
+                stock_map[item_code] = is_stock
+            if is_stock:
+                item.warehouse = store.warehouse
     
     # Set price list if configured
     if store.price_list:

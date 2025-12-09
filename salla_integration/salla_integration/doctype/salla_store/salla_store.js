@@ -27,7 +27,7 @@ frappe.ui.form.on('Salla Store', {
             }).addClass('btn-primary');
         }
 
-        frm.trigger('set_tax_account_filter');
+        frm.trigger('set_tax_template_filter');
         frm.trigger('add_tax_grid_buttons');
     },
     
@@ -38,7 +38,7 @@ frappe.ui.form.on('Salla Store', {
     },
 
     company: function(frm) {
-        frm.trigger('set_tax_account_filter');
+        frm.trigger('set_tax_template_filter');
     },
     
     client_secret: function(frm) {
@@ -203,43 +203,21 @@ frappe.ui.form.on('Salla Store', {
         });
     },
 
-    migrate_store_taxes: function(frm) {
-        if (frm.is_new()) {
-            frappe.msgprint(__('Please save the document before migrating taxes.'));
-            return;
-        }
-
-        if (!frm.doc.company) {
-            frappe.msgprint(__('Please select a Company before migrating taxes.'));
-            return;
-        }
-
-        frappe.call({
-            method: 'salla_integration.salla_integration.doctype.salla_store.salla_store.migrate_salla_taxes',
-            args: {
-                store_name: frm.doc.name
-            },
-            freeze: true,
-            freeze_message: __('Creating Sales Tax Templates...')
-        });
-    },
-
-    set_tax_account_filter: function(frm) {
+    set_tax_template_filter: function(frm) {
         const taxGrid = frm.fields_dict.salla_store_tax && frm.fields_dict.salla_store_tax.grid;
         if (!taxGrid) {
             return;
         }
 
-        taxGrid.get_field('tax_account').get_query = function() {
+        taxGrid.get_field('sales_taxes_and_charges_template').get_query = function() {
             if (!frm.doc.company) {
                 return {};
             }
 
             return {
                 filters: [
-                    ['Account', 'company', '=', frm.doc.company],
-                    ['Account', 'is_group', '=', 0],
-                    ['Account', 'account_type', 'in', ['Tax', 'Chargeable', 'Income Account', 'Expense Account', 'Expenses Included In Valuation']]
+                    ['Sales Taxes and Charges Template', 'company', '=', frm.doc.company],
+                    ['Sales Taxes and Charges Template', 'disabled', '=', 0]
                 ]
             };
         };
@@ -258,10 +236,6 @@ frappe.ui.form.on('Salla Store', {
 
         taxGrid.add_custom_button(__('Get Store Taxes'), function() {
             frm.trigger('fetch_store_taxes');
-        }, 'top');
-
-        taxGrid.add_custom_button(__('Migrate Taxes'), function() {
-            frm.trigger('migrate_store_taxes');
         }, 'top');
     }
 });

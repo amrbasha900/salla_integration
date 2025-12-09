@@ -280,6 +280,10 @@ class SallaClient:
     
     # ==================== Utility Methods ====================
     
+    def get_store_info(self) -> Dict[str, Any]:
+        """Retrieve merchant/store information."""
+        return self._make_request("GET", "/store/info")
+    
     def test_connection(self) -> Dict[str, Any]:
         """Test API connection by fetching merchant info"""
         try:
