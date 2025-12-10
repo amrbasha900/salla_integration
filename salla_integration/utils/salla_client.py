@@ -278,6 +278,32 @@ class SallaClient:
         }
         return self._make_request("GET", "/taxes", params=params)
     
+    # ==================== Branch / Warehouse Methods ====================
+    
+    def get_branches(
+        self,
+        page: int = 1,
+        per_page: int = 60,
+        is_default: Optional[bool] = None,
+        keyword: Optional[str] = None,
+        branch_code: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        List branches/warehouses.
+        """
+        params: Dict[str, Any] = {
+            "page": page,
+            "per_page": min(per_page, self.MAX_PER_PAGE),
+        }
+        if is_default is not None:
+            params["is_default"] = is_default
+        if keyword:
+            params["keyword"] = keyword
+        if branch_code:
+            params["branch_code"] = branch_code
+        
+        return self._make_request("GET", "/branches", params=params)
+    
     # ==================== Utility Methods ====================
     
     def get_store_info(self) -> Dict[str, Any]:

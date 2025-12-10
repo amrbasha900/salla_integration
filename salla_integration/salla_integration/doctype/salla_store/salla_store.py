@@ -309,6 +309,95 @@ class SallaStore(Document):
         frappe.msgprint(message)
         return {"fetched": processed, "added": added, "updated": updated}
 
+    @frappe.whitelist()
+    def fetch_warehouses_and_branches(self):
+        """Pull branches/warehouses from Salla and update the mapping table."""
+        if self.is_new():
+            frappe.throw(_("Please save the store before fetching warehouses and branches."))
+
+        if not self.is_authorized:
+            frappe.throw(_("Please authorize the store before fetching warehouses and branches."))
+
+        client = SallaClient(self.name)
+        branches = client.get_all_pages("get_branches", per_page=client.MAX_PER_PAGE) or []
+
+        existing = {
+            row.salla_id: row
+            for row in (self.get("warehouses_and_branches") or [])
+            if row.salla_id
+        }
+
+        added = 0
+        updated = 0
+        processed = 0
+
+        for entry in branches:
+            branch_id = entry.get("id")
+            if branch_id is None:
+                continue
+
+            processed += 1
+            salla_id = str(branch_id)
+
+            location = entry.get("location") or {}
+            contacts = entry.get("contacts") or {}
+            country_data = entry.get("country") or {}
+            city_data = entry.get("city") or {}
+
+            row_data = {
+                "salla_id": salla_id,
+                "branch_name": entry.get("name"),
+                "type": (entry.get("type") or "").lower() or None,
+                "status": (entry.get("status") or "").lower() or None,
+                "is_default": 1 if entry.get("is_default") else 0,
+                "is_cod_available": 1 if entry.get("is_cod_available") else 0,
+                "cod_cost": flt(entry.get("cod_cost")) if entry.get("cod_cost") is not None else None,
+                "preparation_time": entry.get("preparation_time"),
+                "country": country_data.get("name") or country_data.get("name_en"),
+                "city": city_data.get("name") or city_data.get("name_en"),
+                "street": entry.get("street"),
+                "local": entry.get("local"),
+                "postal_code": entry.get("postal_code"),
+                "address_description": entry.get("address_description"),
+                "location_lat": location.get("lat") or location.get("latitude"),
+                "location_lng": location.get("lng") or location.get("longitude"),
+                "phone": contacts.get("phone"),
+                "whatsapp": contacts.get("whatsapp"),
+                "telephone": contacts.get("telephone"),
+            }
+
+            row = existing.get(salla_id)
+            if row:
+                changed = False
+                for key, val in row_data.items():
+                    if (row.get(key) or None) != val:
+                        row.set(key, val)
+                        changed = True
+                if changed:
+                    updated += 1
+            else:
+                self.append("warehouses_and_branches", row_data)
+                added += 1
+
+        if added or updated:
+            self.set_parent_in_children()
+            self.set_name_in_children()
+
+            for idx, row in enumerate(self.get("warehouses_and_branches"), start=1):
+                row.idx = idx
+
+            self.update_child_table("warehouses_and_branches")
+            frappe.db.commit()
+
+        message = _("Fetched {0} warehouses/branches from Salla. Added {1}, updated {2}.").format(
+            processed, added, updated
+        )
+        if not processed:
+            message = _("No warehouses or branches were returned by Salla.")
+
+        frappe.msgprint(message)
+        return {"fetched": processed, "added": added, "updated": updated}
+
 
 @frappe.whitelist()
 def fetch_store_taxes(store_name: str):
@@ -318,3 +407,13 @@ def fetch_store_taxes(store_name: str):
 
     doc = frappe.get_doc("Salla Store", store_name)
     return doc.fetch_store_taxes()
+
+
+@frappe.whitelist()
+def fetch_warehouses_and_branches(store_name: str):
+    """Wrapper to fetch warehouses/branches for a given store via RPC."""
+    if not store_name:
+        frappe.throw(_("Store name is required."))
+
+    doc = frappe.get_doc("Salla Store", store_name)
+    return doc.fetch_warehouses_and_branches()

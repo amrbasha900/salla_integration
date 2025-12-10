@@ -83,7 +83,11 @@
   "column_break_grjy",
   "cash_on_delivery_fee",
   "taxes_section",
-  "salla_store_tax"
+  "salla_store_tax",
+  "stock_settings_tab",
+  "default_warehouse",
+  "get_warehouses_and_branches",
+  "warehouses_and_branches"
  ],
  "fields": [
   {
@@ -537,11 +541,34 @@
   {
    "fieldname": "column_break_adpk",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "stock_settings_tab",
+   "fieldtype": "Tab Break",
+   "label": "Stock Settings"
+  },
+  {
+   "fieldname": "default_warehouse",
+   "fieldtype": "Link",
+   "label": "Default Warehouse",
+   "link_filters": "[[\"Warehouse\",\"is_group\",\"=\",0],[\"Warehouse\",\"disabled\",\"=\",0]]",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "warehouses_and_branches",
+   "fieldtype": "Table",
+   "label": "Warehouses and Branches",
+   "options": "Salla Store Warehouses and Branches"
+  },
+  {
+   "fieldname": "get_warehouses_and_branches",
+   "fieldtype": "Button",
+   "label": "Get Warehouses and Branches"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-12-09 13:47:52.427758",
+ "modified": "2025-12-10 17:48:37.131048",
  "modified_by": "Administrator",
  "module": "Salla Integration",
  "name": "Salla Store",

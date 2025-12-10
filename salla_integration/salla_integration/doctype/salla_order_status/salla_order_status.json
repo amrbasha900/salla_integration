@@ -16,6 +16,17 @@
   "sort_order",
   "icon",
   "is_active",
+  "erpnext_actions_section",
+  "create_sales_order",
+  "submit_sales_order",
+  "create_sales_invoice",
+  "submit_sales_invoice",
+  "create_delivery_note",
+  "submit_sales_delivery_note",
+  "column_break_mdrq",
+  "cancel_sales_order",
+  "cancel_sales_invoice",
+  "cancel_delivery_note",
   "message_section",
   "message",
   "translations_json",
@@ -146,15 +157,79 @@
    "fieldtype": "Data",
    "label": "Original Status Name",
    "read_only": 1
+  },
+  {
+   "fieldname": "erpnext_actions_section",
+   "fieldtype": "Section Break",
+   "label": "ERPNext Actions"
+  },
+  {
+   "default": "0",
+   "fieldname": "submit_sales_order",
+   "fieldtype": "Check",
+   "label": "Submit Sales Order"
+  },
+  {
+   "fieldname": "column_break_mdrq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "cancel_sales_order",
+   "fieldtype": "Check",
+   "label": "Cancel Sales Order"
+  },
+  {
+   "default": "0",
+   "fieldname": "create_sales_invoice",
+   "fieldtype": "Check",
+   "label": "Create Sales Invoice"
+  },
+  {
+   "default": "0",
+   "fieldname": "create_delivery_note",
+   "fieldtype": "Check",
+   "label": "Create Delivery Note "
+  },
+  {
+   "default": "0",
+   "fieldname": "cancel_sales_invoice",
+   "fieldtype": "Check",
+   "label": "Cancel Sales Invoice"
+  },
+  {
+   "default": "0",
+   "fieldname": "cancel_delivery_note",
+   "fieldtype": "Check",
+   "label": "Cancel Delivery Note"
+  },
+  {
+   "default": "0",
+   "fieldname": "submit_sales_invoice",
+   "fieldtype": "Check",
+   "label": "Submit Sales Invoice"
+  },
+  {
+   "default": "0",
+   "fieldname": "submit_sales_delivery_note",
+   "fieldtype": "Check",
+   "label": "Submit Sales Delivery Note"
+  },
+  {
+   "default": "0",
+   "fieldname": "create_sales_order",
+   "fieldtype": "Check",
+   "label": "Create Sales Order"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-11-19 16:30:00.000000",
+ "modified": "2025-12-09 15:08:21.757051",
  "modified_by": "Administrator",
  "module": "Salla Integration",
  "name": "Salla Order Status",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {

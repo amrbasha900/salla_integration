@@ -237,5 +237,29 @@ frappe.ui.form.on('Salla Store', {
         taxGrid.add_custom_button(__('Get Store Taxes'), function() {
             frm.trigger('fetch_store_taxes');
         }, 'top');
+    },
+
+    get_warehouses_and_branches: function(frm) {
+        if (frm.is_new()) {
+            frappe.msgprint(__('Please save the document before fetching warehouses and branches.'));
+            return;
+        }
+
+        if (!frm.doc.is_authorized) {
+            frappe.msgprint(__('Please authorize the store before fetching warehouses and branches.'));
+            return;
+        }
+
+        frappe.call({
+            method: 'salla_integration.salla_integration.doctype.salla_store.salla_store.fetch_warehouses_and_branches',
+            args: {
+                store_name: frm.doc.name
+            },
+            freeze: true,
+            freeze_message: __('Fetching warehouses and branches from Salla...'),
+            callback: function() {
+                frm.reload_doc();
+            }
+        });
     }
 });
