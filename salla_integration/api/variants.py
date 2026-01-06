@@ -6,6 +6,7 @@ from erpnext.controllers.item_variant import create_variant, make_variant_item_c
 from frappe.model.rename_doc import rename_doc
 from salla_integration.utils.salla_client import SallaClient
 from salla_integration.api.options import sync_product_options
+from salla_integration.api.items import sync_group_product
 from salla_integration.salla_integration.doctype.missing_products_sku.missing_products_sku import log_missing_sku
 
 
@@ -323,6 +324,10 @@ def create_salla_option_records(*args, **kwargs):
 def sync_salla_product(store_name: str, salla_product: Dict[str, Any], sync_log=None):
 	"""Main entry to sync one Salla product with options/variants into ERPNext."""
 	product_id = str(salla_product.get("id") or "")
+	# Handle bundles (group_products) via items flow to create Product Bundles
+	if (salla_product.get("type") or "").strip() == "group_products":
+		sync_group_product(store_name, salla_product)
+		return
 	# Skip when no SKU at all (template and variant) per rules: if template SKU missing but skus have, proceed on variants
 	template_sku = (salla_product.get("sku") or "").strip() if salla_product.get("sku") else ""
 	if not template_sku and not (salla_product.get("skus") or []):

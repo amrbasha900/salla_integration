@@ -27,6 +27,7 @@
   "cancel_sales_order",
   "cancel_sales_invoice",
   "cancel_delivery_note",
+  "make_return",
   "message_section",
   "message",
   "translations_json",
@@ -220,12 +221,18 @@
    "fieldname": "create_sales_order",
    "fieldtype": "Check",
    "label": "Create Sales Order"
+  },
+  {
+   "default": "0",
+   "fieldname": "make_return",
+   "fieldtype": "Check",
+   "label": "Make Return"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-12-09 15:08:21.757051",
+ "modified": "2025-12-22 11:53:05.409399",
  "modified_by": "Administrator",
  "module": "Salla Integration",
  "name": "Salla Order Status",

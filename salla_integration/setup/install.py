@@ -132,6 +132,12 @@ def create_salla_custom_fields():
 				"fieldtype": "Link",
 				"options": "Salla Store",
 				"insert_after": "salla_option_id"
+			},
+            {
+				"fieldname": "product_sku",
+				"label": "Product SKU",
+				"fieldtype": "Data",
+				"insert_after": "salla_store"
 			}
 		],
 		"Item Attribute Value": [

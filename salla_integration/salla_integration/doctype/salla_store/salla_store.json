@@ -33,7 +33,6 @@
   "column_break_sync",
   "enable_customer_sync",
   "enable_inventory_sync",
-  "warehouse",
   "price_list",
   "column_break_warehouse",
   "default_customer_group",
@@ -85,7 +84,7 @@
   "taxes_section",
   "salla_store_tax",
   "stock_settings_tab",
-  "default_warehouse",
+  "warehouse",
   "get_warehouses_and_branches",
   "warehouses_and_branches"
  ],
@@ -548,13 +547,6 @@
    "label": "Stock Settings"
   },
   {
-   "fieldname": "default_warehouse",
-   "fieldtype": "Link",
-   "label": "Default Warehouse",
-   "link_filters": "[[\"Warehouse\",\"is_group\",\"=\",0],[\"Warehouse\",\"disabled\",\"=\",0]]",
-   "options": "Warehouse"
-  },
-  {
    "fieldname": "warehouses_and_branches",
    "fieldtype": "Table",
    "label": "Warehouses and Branches",
@@ -568,7 +560,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-12-10 17:48:37.131048",
+ "modified": "2025-12-22 11:31:11.812900",
  "modified_by": "Administrator",
  "module": "Salla Integration",
  "name": "Salla Store",
